@@ -93,9 +93,18 @@ proj-DP/
 
 ### Window layout
 
-The workstation is designed for a half-screen beside the camera view. It defaults
-to `640 × 860` and keeps a minimum size of `520 × 640`. The light instrument-style
-layout stacks connection, driver, axis, and event-log sections vertically.
+The workstation has a full view and a slim floating axis strip for use over a
+full-screen camera or ultrasound application. It starts in the floating mode at
+approximately `1300 × 138`, opens at the top-center of the screen, stays on
+top, and shows only the Axis 1 and Axis 2 panels with their live positions,
+step/speed arrows, and jog buttons. The
+header, motor controls, serial setup, and event log are intentionally hidden
+because setup is completed before operation.
+
+Press `F8` or click `FULL` to restore the complete workstation. The full view
+defaults to `640 × 860` with a minimum size of `520 × 640`; press `F8` again to
+return to the horizontal strap. The strap has a native title bar and can be
+dragged to any low-interference area of the ultrasound screen.
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐

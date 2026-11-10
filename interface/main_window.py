@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Optional
 
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QCloseEvent, QFont, QKeyEvent
+from PySide6.QtGui import QCloseEvent, QFont, QKeyEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -70,12 +70,15 @@ class MainWindow(QMainWindow):
 
         self._cfg = Config.instance()
         self._esp32_controller = esp32_controller
+        self._compact_mode = False
 
         self.setWindowTitle("Needle Motion Control — Robotic Teleoperation Workstation")
         self.resize(640, 860)
         self.setMinimumSize(520, 640)
 
         self._build_ui()
+        self._compact_shortcut = QShortcut(QKeySequence("F8"), self)
+        self._compact_shortcut.activated.connect(self.toggle_compact_mode)
 
         # Background worker
         self._esp32_worker = ESP32Worker(self._esp32_controller)
@@ -100,6 +103,7 @@ class MainWindow(QMainWindow):
 
         self.setFocusPolicy(Qt.StrongFocus)
         self.setFocus()
+        self._set_compact_mode(True)
 
     # ==================================================================
     # UI construction
@@ -112,7 +116,8 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        main_layout.addWidget(self._build_header())
+        self._header_widget = self._build_header()
+        main_layout.addWidget(self._header_widget)
 
         root_splitter = QSplitter(Qt.Vertical)
         root_splitter.setChildrenCollapsible(False)
@@ -121,6 +126,7 @@ class MainWindow(QMainWindow):
         root_splitter.addWidget(self.end_effector_panel)
 
         log_widget = self._build_log_panel()
+        self._log_widget = log_widget
         root_splitter.addWidget(log_widget)
         root_splitter.setStretchFactor(0, 1)
         root_splitter.setStretchFactor(1, 0)
@@ -193,7 +199,49 @@ class MainWindow(QMainWindow):
         self._master_stop_btn.clicked.connect(self._handle_master_stop)
         layout.addWidget(self._master_stop_btn)
 
+        self._view_toggle_btn = QPushButton("FULL")
+        self._view_toggle_btn.setObjectName("viewToggleButton")
+        self._view_toggle_btn.setFixedSize(52, 34)
+        self._view_toggle_btn.setToolTip("Show the full workstation  [F8]")
+        self._view_toggle_btn.clicked.connect(self.toggle_compact_mode)
+        layout.insertWidget(layout.count() - 1, self._view_toggle_btn)
+
         return header
+
+    def toggle_compact_mode(self) -> None:
+        """Toggle the slim always-on-top control strap."""
+        self._set_compact_mode(not self._compact_mode)
+
+    def _set_compact_mode(self, compact: bool) -> None:
+        self._compact_mode = compact
+        self._header_widget.setVisible(not compact)
+        self.end_effector_panel.set_compact_mode(compact)
+        self._log_widget.setVisible(not compact)
+        self._view_toggle_btn.setText("FULL" if compact else "FLOAT")
+        self._view_toggle_btn.setToolTip(
+            "Show the full workstation  [F8]"
+            if compact
+            else "Return to the floating strap  [F8]"
+        )
+
+        self.setWindowFlag(Qt.Tool, compact)
+        self.setWindowFlag(Qt.WindowStaysOnTopHint, compact)
+        if compact:
+            self.setMinimumSize(900, 108)
+            self.resize(1300, 138)
+            screen = QApplication.primaryScreen()
+            if screen is not None:
+                area = screen.availableGeometry()
+                self.move(
+                    area.center().x() - self.width() // 2,
+                    area.top(),
+                )
+        else:
+            self.setMinimumSize(520, 640)
+            self.resize(640, 860)
+        self.show()
+        self.raise_()
+        self.activateWindow()
 
     def _build_log_panel(self) -> QWidget:
         box = QGroupBox("Event log")

@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
+    QBoxLayout,
     QFrame,
     QGroupBox,
     QHBoxLayout,
@@ -92,6 +93,11 @@ class EndEffectorPanel(QWidget):
         self._axis_homed_labels:     list[QLabel]         = []
         self._axis_increments:       list[QDoubleSpinBox] = []
         self._axis_speed_sliders:    list[QSpinBox]       = []
+        self._axis_groups:           list[QGroupBox]      = []
+        self._axis_limit_labels:     list[QLabel]         = []
+        self._connection_group: Optional[QGroupBox] = None
+        self._connection_controls: Optional[QWidget] = None
+        self._axis_layout: Optional[QBoxLayout] = None
 
         self._build_ui()
 
@@ -129,6 +135,7 @@ class EndEffectorPanel(QWidget):
                 default_step=15.0, default_speed=25, unit="°",
             )
         )
+        self._axis_layout = axis_layout
         self._main_layout.addLayout(axis_layout)
 
         self._main_layout.addStretch()
@@ -138,6 +145,7 @@ class EndEffectorPanel(QWidget):
     # ------------------------------------------------------------------
     def _build_connection_section(self) -> None:
         group = QGroupBox("End-effector")
+        self._connection_group = group
         layout = QVBoxLayout(group)
         layout.setSpacing(12)
         layout.setContentsMargins(0, 4, 0, 0)
@@ -209,9 +217,37 @@ class EndEffectorPanel(QWidget):
         motor_row.addStretch()
         motor_column.addLayout(motor_row)
 
-        layout.addLayout(connection_column)
+        connection_controls = QWidget()
+        connection_controls.setLayout(connection_column)
+        self._connection_controls = connection_controls
+        layout.addWidget(connection_controls)
         layout.addLayout(motor_column)
         self._main_layout.addWidget(group)
+
+    def set_compact_mode(self, compact: bool) -> None:
+        """Switch between the full workstation panel and the control strap."""
+        if self._connection_group is not None:
+            self._connection_group.setVisible(not compact)
+
+        if self._axis_layout is not None:
+            self._axis_layout.setDirection(
+                QBoxLayout.LeftToRight if compact else QBoxLayout.TopToBottom
+            )
+
+        for label in self._axis_limit_labels:
+            label.setVisible(not compact)
+        for label in self._axis_homed_labels:
+            label.setVisible(not compact)
+        for indicator in self._axis_homed_indicators:
+            indicator.setVisible(not compact)
+
+        self._main_layout.setContentsMargins(
+            8 if compact else 20,
+            4 if compact else 14,
+            8 if compact else 20,
+            6 if compact else 18,
+        )
+        self._main_layout.setSpacing(2 if compact else 4)
 
     # ------------------------------------------------------------------
     def _build_axis(
@@ -223,6 +259,7 @@ class EndEffectorPanel(QWidget):
         unit: str = "°",
     ) -> QGroupBox:
         group = QGroupBox(title.title())
+        self._axis_groups.append(group)
         layout = QVBoxLayout(group)
         layout.setSpacing(14)
         layout.setContentsMargins(0, 4, 0, 0)
@@ -251,6 +288,7 @@ class EndEffectorPanel(QWidget):
         lo, hi = AXIS_LIMITS[axis]
         limits = QLabel(f"Travel: {lo:g} to {hi:g} {unit}")
         limits.setStyleSheet(f"color: {_DIM}; font-size: 12px;")
+        self._axis_limit_labels.append(limits)
         readout.addWidget(limits)
 
         layout.addLayout(readout)
