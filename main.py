@@ -17,11 +17,8 @@ from PySide6.QtWidgets import QApplication
 
 from config import Config
 from controllers.esp32_controller import ESP32Controller
-from controllers.ur_controller import URController
 from interface.main_window import MainWindow
 from interface.styles import DARK_STYLESHEET
-from vision.camera import CameraManager
-from vision.needle_detector import create_detector
 
 
 def setup_logging(log_level: str = "INFO") -> None:
@@ -74,13 +71,6 @@ def main() -> int:
     app.setStyleSheet(DARK_STYLESHEET)
 
     # 4. Instantiate Subsystem Controllers
-    logger.info("Initializing UR7e controller (sim=%s)...", cfg.application.simulation_mode)
-    ur_controller = URController(
-        simulation_mode=cfg.application.simulation_mode,
-        max_velocity=cfg.robot.max_velocity,
-        max_acceleration=cfg.robot.max_acceleration,
-    )
-
     logger.info("Initializing ESP32 controller (sim=%s)...", cfg.application.simulation_mode)
     esp32_controller = ESP32Controller(
         simulation_mode=cfg.application.simulation_mode,
@@ -96,21 +86,9 @@ def main() -> int:
             axis2_limits=(-360.0, 360.0),
         )
 
-    logger.info("Initializing Camera Manager...")
-    camera_manager = CameraManager()
-    camera_manager.set_resolution(cfg.camera.width, cfg.camera.height)
-    camera_manager.set_fps(cfg.camera.fps)
-
-    logger.info("Initializing Needle Detector...")
-    model_path = cfg.vision.model_path if cfg.vision.enabled else None
-    detector = create_detector(model_path)
-
     # 5. Build and show main window
     window = MainWindow(
-        ur_controller=ur_controller,
         esp32_controller=esp32_controller,
-        camera_manager=camera_manager,
-        needle_detector=detector,
     )
     window.show()
 

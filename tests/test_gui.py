@@ -4,14 +4,11 @@ Tests for PySide6 GUI integration (interface/main_window.py).
 
 import sys
 import pytest
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from config import Config
-from controllers.ur_controller import URController
 from controllers.esp32_controller import ESP32Controller
-from vision.camera import CameraManager
-from vision.needle_detector import MockDetector
 from interface.main_window import MainWindow
 
 
@@ -24,80 +21,51 @@ def qapp():
     return app
 
 
-def test_main_window_startup_and_shutdown(qapp):
+def _make_window():
     cfg = Config.instance()
     cfg.application.simulation_mode = True
 
-    ur_ctrl = URController(simulation_mode=True)
     esp_ctrl = ESP32Controller(simulation_mode=True)
     esp_ctrl.set_motor_parameters(8.889, 8.889, (-180.0, 180.0), (-360.0, 360.0))
-    cam = CameraManager()
-    det = MockDetector()
 
-    win = MainWindow(
-        ur_controller=ur_ctrl,
-        esp32_controller=esp_ctrl,
-        camera_manager=cam,
-        needle_detector=det,
-    )
+    return MainWindow(esp32_controller=esp_ctrl)
 
-    # Window should be created and responsive
+
+def test_main_window_startup_and_shutdown(qapp):
+    win = _make_window()
+
     assert win is not None
     assert "Teleoperation Workstation" in win.windowTitle()
 
-    # Test master stop
-    win._handle_master_stop()
+    # Audit log is present and receives entries
+    assert win._log_text.toPlainText()
 
-    # Simulate close event
+    # The arm and camera panels are intentionally not part of this workstation
+    assert not hasattr(win, "robot_panel")
+    assert not hasattr(win, "vision_panel")
+
+    win._handle_master_stop()
     win.close()
 
 
 def test_keyboard_teleoperation(qapp):
     from PySide6.QtGui import QKeyEvent
 
-    cfg = Config.instance()
-    cfg.application.simulation_mode = True
+    win = _make_window()
 
-    ur_ctrl = URController(simulation_mode=True)
-    esp_ctrl = ESP32Controller(simulation_mode=True)
-    esp_ctrl.set_motor_parameters(8.889, 8.889, (-180.0, 180.0), (-360.0, 360.0))
-    cam = CameraManager()
-    det = MockDetector()
-
-    win = MainWindow(
-        ur_controller=ur_ctrl,
-        esp32_controller=esp_ctrl,
-        camera_manager=cam,
-        needle_detector=det,
-    )
-
-    # Connect ESP32 in simulation
-    esp_ctrl.connect("SIMULATED_PORT", 115200)
-    esp_ctrl.enable()
+    # Connect the simulated end-effector and enable the drivers
+    win._esp32_controller.connect("SIMULATED_PORT", 115200)
+    win._esp32_controller.enable()
     win.end_effector_panel.set_motor_status(True)
 
-    # Press W (Advance)
-    ev_w = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_W, Qt.NoModifier, "w")
-    win.keyPressEvent(ev_w)
-
-    # Press S (Retract)
-    ev_s = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_S, Qt.NoModifier, "s")
-    win.keyPressEvent(ev_s)
-
-    # Press A (Rotate CCW)
-    ev_a = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_A, Qt.NoModifier, "a")
-    win.keyPressEvent(ev_a)
-
-    # Press D (Rotate CW)
-    ev_d = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_D, Qt.NoModifier, "d")
-    win.keyPressEvent(ev_d)
-
-    # Press 3 (Speed Preset Normal)
-    ev_3 = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_3, Qt.NoModifier, "3")
-    win.keyPressEvent(ev_3)
-
-    # Press Space (ALL STOP)
-    ev_sp = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Space, Qt.NoModifier, " ")
-    win.keyPressEvent(ev_sp)
+    for key, text in (
+        (Qt.Key_W, "w"),
+        (Qt.Key_S, "s"),
+        (Qt.Key_A, "a"),
+        (Qt.Key_D, "d"),
+        (Qt.Key_3, "3"),
+        (Qt.Key_Space, " "),
+    ):
+        win.keyPressEvent(QKeyEvent(QKeyEvent.KeyPress, key, Qt.NoModifier, text))
 
     win.close()
