@@ -6,8 +6,8 @@ Firmware for the ESP32-S microcontroller controlling the 2-DOF needle insertion 
 
 - **Microcontroller**: ESP32-S DevKit
 - **Motor Drivers**: Step/Dir bipolar stepper drivers (A4988, DRV8825, TMC2208, or TMC2209 in standalone legacy mode)
-- **Axis 1 (Insertion)**: Linear lead screw / rack-and-pinion drive for needle penetration
-- **Axis 2 (Rotation)**: Rotational drive for needle axial spin / bevel orientation
+- **Axis 1 (Insertion)**: Linear guide for forward/backward needle travel
+- **Axis 2 (Guide angle)**: Circular guide for changing the needle insertion angle
 
 ### Default Pinout
 
@@ -47,7 +47,14 @@ Firmware for the ESP32-S microcontroller controlling the 2-DOF needle insertion 
 
 Open `esp32_controller.ino` and configure the kinematic constants for your mechanical setup:
 
-### Steps Per Degree Calculation:
+### Steps Per Motion Unit
+
+Axis 1 is calibrated in **steps/mm** from the linear guide transmission:
+
+$$\text{steps\_per\_mm} = \frac{\text{motor\_steps} \times \text{microstepping} \times \text{transmission\_ratio}}{\text{mm per motor revolution}}$$
+
+Axis 2 is calibrated in **steps/degree** for the circular guide:
+
 $$\text{steps\_per\_deg} = \frac{\text{motor\_steps\_per\_rev} \times \text{microstepping} \times \text{gear\_ratio}}{360.0}$$
 
 **Example:**
@@ -58,13 +65,13 @@ $$\text{steps\_per\_deg} = \frac{\text{motor\_steps\_per\_rev} \times \text{micr
 
 Update in the firmware:
 ```cpp
-static float STEPS_PER_DEG_AXIS1 = 8.88889f;
+static float STEPS_PER_MM_AXIS1  = /* calibrate from the linear guide */;
 static float STEPS_PER_DEG_AXIS2 = 8.88889f;
 
-static float LIMIT_MIN_AXIS1 = -180.0f;
-static float LIMIT_MAX_AXIS1 =  180.0f;
-static float LIMIT_MIN_AXIS2 = -360.0f;
-static float LIMIT_MAX_AXIS2 =  360.0f;
+static float LIMIT_MIN_AXIS1_MM  = /* linear minimum */;
+static float LIMIT_MAX_AXIS1_MM  = /* linear maximum */;
+static float LIMIT_MIN_AXIS2_DEG = /* minimum guide angle */;
+static float LIMIT_MAX_AXIS2_DEG = /* maximum guide angle */;
 ```
 
 ---
@@ -76,8 +83,8 @@ All commands and responses are single-line JSON objects terminated by `\n`.
 ### A. Commands (PC -> ESP32)
 - **Connect**: `{"v":1,"id":1,"cmd":"CONNECT"}`
 - **Enable Drivers**: `{"v":1,"id":2,"cmd":"ENABLE"}`
-- **Move Absolute**: `{"v":1,"id":3,"cmd":"MOVE_ABS","axis":1,"target_deg":45.0,"speed":15.0}`
-- **Move Relative**: `{"v":1,"id":4,"cmd":"MOVE_REL","axis":2,"delta_deg":-30.0,"speed":10.0}`
+- **Move insertion absolute**: `{"v":1,"id":3,"cmd":"MOVE_ABS","axis":1,"target_mm":45.0,"speed":15.0}`
+- **Move guide angle relative**: `{"v":1,"id":4,"cmd":"MOVE_REL","axis":2,"delta_deg":-30.0,"speed":10.0}`
 - **Home**: `{"v":1,"id":5,"cmd":"HOME","axis":1}` (axis 0 = both)
 - **Stop**: `{"v":1,"id":6,"cmd":"STOP"}`
 - **Heartbeat**: `{"v":1,"id":7,"cmd":"HEARTBEAT"}`
@@ -89,7 +96,7 @@ All commands and responses are single-line JSON objects terminated by `\n`.
 
 ### C. Periodic Telemetry (ESP32 -> PC, 5 Hz)
 ```json
-{"v":1,"type":"telemetry","connected":true,"enabled":true,"axes":[{"axis":1,"position_deg":45.0,"homed":true,"moving":false},{"axis":2,"position_deg":0.0,"homed":false,"moving":false}]}
+{"v":1,"type":"telemetry","connected":true,"enabled":true,"axes":[{"axis":1,"position_mm":45.0,"homed":true,"moving":false},{"axis":2,"position_deg":0.0,"homed":false,"moving":false}]}
 ```
 
 ### D. Safety Watchdog

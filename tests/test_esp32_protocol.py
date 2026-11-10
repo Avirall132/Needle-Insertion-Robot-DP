@@ -27,6 +27,13 @@ def test_esp32_simulation_connect_and_disconnect():
     assert ctrl.is_connected is False
 
 
+def test_esp32_controller_accepts_configured_baud_rate():
+    ctrl = ESP32Controller(simulation_mode=True, baud_rate=230400)
+    assert ctrl._baud_rate == 230400
+    assert ctrl.connect("COM3") is True
+    ctrl.disconnect()
+
+
 def test_esp32_sequence_ids():
     ctrl = ESP32Controller(simulation_mode=True)
     ctrl.connect("COM3")
@@ -51,7 +58,7 @@ def test_esp32_movement_safety_unconfigured_rejection():
     ctrl.connect("COM3")
     assert not ctrl.motor_params_configured
 
-    resp = ctrl.move_axis(axis=1, target_deg=30.0, speed=10.0)
+    resp = ctrl.move_axis(axis=1, target_position=30.0, speed=10.0)
     assert resp.get("ok") is False
     assert "not configured" in resp.get("error", "").lower()
     ctrl.disconnect()
@@ -70,11 +77,11 @@ def test_esp32_configured_movement_and_limits():
     assert ctrl.motor_params_configured is True
 
     # Valid move
-    resp = ctrl.move_axis(axis=1, target_deg=45.0, speed=10.0)
+    resp = ctrl.move_axis(axis=1, target_position=45.0, speed=10.0)
     assert resp.get("ok") is True
 
     # Invalid move exceeding software travel limits (-90 to +90)
-    resp_bad = ctrl.move_axis(axis=1, target_deg=120.0, speed=10.0)
+    resp_bad = ctrl.move_axis(axis=1, target_position=120.0, speed=10.0)
     assert resp_bad.get("ok") is False
     assert "limit" in resp_bad.get("error", "").lower()
 

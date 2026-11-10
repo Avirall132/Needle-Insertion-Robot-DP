@@ -28,6 +28,7 @@ class _CommandType(Enum):
     CONNECT = auto()
     DISCONNECT = auto()
     MOVE_AXIS = auto()
+    MOVE_AXIS_REL = auto()
     STOP = auto()
     HOME = auto()
     ENABLE = auto()
@@ -69,6 +70,7 @@ class ESP32Worker(QThread):
                 get_status() -> dict | None
                 get_telemetry() -> dict | None
                 move_axis(axis, position, speed) -> dict | None
+                move_axis_relative(axis, delta, speed) -> dict | None
                 stop() -> dict | None
                 home(axis) -> dict | None
                 enable() -> dict | None
@@ -118,6 +120,27 @@ class ESP32Worker(QThread):
             (
                 _CommandType.MOVE_AXIS,
                 {"axis": axis, "position": position, "speed": speed},
+            )
+        )
+
+    def move_axis_relative(
+        self,
+        axis: int,
+        delta: float,
+        speed: float = 1.0,
+    ) -> None:
+        """
+        Enqueue a MOVE_AXIS_REL command.
+
+        Args:
+            axis:  Axis identifier (1-based, as sent by the end-effector panel).
+            delta: Relative movement in degrees (+ = advance / CW).
+            speed: Movement speed in degrees per second.
+        """
+        self._command_queue.put(
+            (
+                _CommandType.MOVE_AXIS_REL,
+                {"axis": axis, "delta": delta, "speed": speed},
             )
         )
 
@@ -210,6 +233,12 @@ class ESP32Worker(QThread):
                         params["position"],
                         params["speed"],
                     )
+                elif cmd_type == _CommandType.MOVE_AXIS_REL:
+                    self._handle_move_axis_relative(
+                        params["axis"],
+                        params["delta"],
+                        params["speed"],
+                    )
                 elif cmd_type == _CommandType.STOP:
                     self._handle_stop()
                 elif cmd_type == _CommandType.HOME:
@@ -253,6 +282,16 @@ class ESP32Worker(QThread):
             self.error_occurred.emit("Cannot move – ESP32 not connected")
             return
         response = self._controller.move_axis(axis, position, speed)
+        if response is not None:
+            self.command_response.emit(response)
+
+    def _handle_move_axis_relative(
+        self, axis: int, delta: float, speed: float
+    ) -> None:
+        if not self._controller.is_connected:
+            self.error_occurred.emit("Cannot move – ESP32 not connected")
+            return
+        response = self._controller.move_axis_relative(axis, delta, speed)
         if response is not None:
             self.command_response.emit(response)
 

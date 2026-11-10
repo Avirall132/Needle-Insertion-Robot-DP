@@ -8,7 +8,7 @@
  *   - Microcontroller: ESP32-S Development Board
  *   - Drivers: Step/Dir Stepper Drivers (A4988 / DRV8825 / TMC2208/TMC2209)
  *   - Axis 1: Needle Insertion (Linear motion)
- *   - Axis 2: Needle Rotation (Rotational motion)
+ *   - Axis 2: Needle-guide angle adjustment (circular motion)
  *   - Limit switches for homing
  * 
  * Communication:
@@ -18,7 +18,7 @@
  * Safety features:
  *   - Communication watchdog: auto-halts motors if PC heartbeat stops (timeout: 2000ms)
  *   - Hardware limit switch detection
- *   - Software travel limits (degrees)
+ *   - Software travel limits (mm for insertion, degrees for guide angle)
  *   - Safe stopping state on communication loss
  * ============================================================================
  */
@@ -34,7 +34,7 @@
 #define PIN_DIR_AXIS1       19
 #define PIN_LIMIT_AXIS1     21  // Active-LOW limit switch with internal pullup
 
-// Axis 2: Rotation
+// Axis 2: Needle-guide angle adjustment
 #define PIN_STEP_AXIS2      22
 #define PIN_DIR_AXIS2       23
 #define PIN_LIMIT_AXIS2     25  // Active-LOW limit switch with internal pullup
@@ -48,21 +48,22 @@
 // ----------------------------------------------------------------------------
 // KINEMATIC & MOTOR PARAMETERS (Must match physical hardware)
 // ----------------------------------------------------------------------------
-// Calibration: Steps per Degree of output shaft
-// Example: 200 steps/rev * 16 microsteps = 3200 steps/rev -> 3200 / 360 = 8.889 steps/deg
-static float STEPS_PER_DEG_AXIS1 = 8.88889f;
+// Calibration: steps per motion unit.
+// Axis 1 is linear insertion (steps/mm); Axis 2 is guide angle (steps/deg).
+static float STEPS_PER_MM_AXIS1  = 8.88889f; // replace with lead-screw/rack calibration
 static float STEPS_PER_DEG_AXIS2 = 8.88889f;
 
-// Software travel limits (degrees)
-static float LIMIT_MIN_AXIS1 = -180.0f;
-static float LIMIT_MAX_AXIS1 =  180.0f;
-static float LIMIT_MIN_AXIS2 = -360.0f;
-static float LIMIT_MAX_AXIS2 =  360.0f;
+// Software travel limits (Axis 1: mm; Axis 2: degrees)
+static float LIMIT_MIN_AXIS1_MM  = -180.0f;
+static float LIMIT_MAX_AXIS1_MM  =  180.0f;
+static float LIMIT_MIN_AXIS2_DEG = -360.0f;
+static float LIMIT_MAX_AXIS2_DEG =  360.0f;
 
 // Speed & Acceleration defaults
-static float DEFAULT_SPEED_DPS = 20.0f;     // deg / sec
-static float MAX_SPEED_DPS     = 90.0f;     // deg / sec
-static float ACCEL_DPS2        = 100.0f;    // deg / sec^2
+static float DEFAULT_SPEED_AXIS1 = 20.0f;  // mm/sec
+static float DEFAULT_SPEED_AXIS2 = 20.0f;  // deg/sec
+static float MAX_SPEED_AXIS1     = 90.0f;  // mm/sec
+static float MAX_SPEED_AXIS2     = 90.0f;  // deg/sec
 
 // Watchdog timer (ms)
 #define WATCHDOG_TIMEOUT_MS 2000
@@ -74,15 +75,15 @@ static float ACCEL_DPS2        = 100.0f;    // deg / sec^2
 struct AxisState {
     long current_step;
     long target_step;
-    float current_deg;
-    float target_deg;
-    float speed_deg_s;
+    float current_position;
+    float target_position;
+    float speed_units_s;
     bool is_moving;
     bool is_homed;
     int step_pin;
     int dir_pin;
     int limit_pin;
-    float steps_per_deg;
+    float steps_per_unit;
     float limit_min;
     float limit_max;
     unsigned long step_interval_us;
@@ -135,34 +136,34 @@ void setup() {
     // Initialize Axis 1
     axis1.current_step       = 0;
     axis1.target_step        = 0;
-    axis1.current_deg        = 0.0f;
-    axis1.target_deg         = 0.0f;
-    axis1.speed_deg_s        = DEFAULT_SPEED_DPS;
+    axis1.current_position   = 0.0f;
+    axis1.target_position    = 0.0f;
+    axis1.speed_units_s      = DEFAULT_SPEED_AXIS1;
     axis1.is_moving          = false;
     axis1.is_homed           = false;
     axis1.step_pin           = PIN_STEP_AXIS1;
     axis1.dir_pin            = PIN_DIR_AXIS1;
     axis1.limit_pin          = PIN_LIMIT_AXIS1;
-    axis1.steps_per_deg      = STEPS_PER_DEG_AXIS1;
-    axis1.limit_min          = LIMIT_MIN_AXIS1;
-    axis1.limit_max          = LIMIT_MAX_AXIS1;
+    axis1.steps_per_unit     = STEPS_PER_MM_AXIS1;
+    axis1.limit_min          = LIMIT_MIN_AXIS1_MM;
+    axis1.limit_max          = LIMIT_MAX_AXIS1_MM;
     axis1.step_interval_us   = 1000;
     axis1.last_step_time_us  = 0;
 
     // Initialize Axis 2
     axis2.current_step       = 0;
     axis2.target_step        = 0;
-    axis2.current_deg        = 0.0f;
-    axis2.target_deg         = 0.0f;
-    axis2.speed_deg_s        = DEFAULT_SPEED_DPS;
+    axis2.current_position   = 0.0f;
+    axis2.target_position    = 0.0f;
+    axis2.speed_units_s      = DEFAULT_SPEED_AXIS2;
     axis2.is_moving          = false;
     axis2.is_homed           = false;
     axis2.step_pin           = PIN_STEP_AXIS2;
     axis2.dir_pin            = PIN_DIR_AXIS2;
     axis2.limit_pin          = PIN_LIMIT_AXIS2;
-    axis2.steps_per_deg      = STEPS_PER_DEG_AXIS2;
-    axis2.limit_min          = LIMIT_MIN_AXIS2;
-    axis2.limit_max          = LIMIT_MAX_AXIS2;
+    axis2.steps_per_unit     = STEPS_PER_DEG_AXIS2;
+    axis2.limit_min          = LIMIT_MIN_AXIS2_DEG;
+    axis2.limit_max          = LIMIT_MAX_AXIS2_DEG;
     axis2.step_interval_us   = 1000;
     axis2.last_step_time_us  = 0;
 
@@ -243,7 +244,7 @@ void updateAxis(AxisState& ax) {
         delayMicroseconds(4);
         digitalWrite(ax.step_pin, LOW);
 
-        ax.current_deg = (float)ax.current_step / ax.steps_per_deg;
+        ax.current_position = (float)ax.current_step / ax.steps_per_unit;
     }
 }
 
@@ -323,8 +324,8 @@ void handleCommand(JsonDocument& doc) {
 
     if (strcmp(cmd, "MOVE_ABS") == 0) {
         int axis_id = doc["axis"] | 0;
-        float target_deg = doc["target_deg"] | 0.0f;
-        float speed = doc["speed"] | DEFAULT_SPEED_DPS;
+        float target = doc["target"] | 0.0f;
+        float speed = doc["speed"] | ((axis_id == 1) ? DEFAULT_SPEED_AXIS1 : DEFAULT_SPEED_AXIS2);
 
         if (!g_motors_enabled) {
             sendResponse(id, false, "rejected", "Motors disabled");
@@ -340,17 +341,22 @@ void handleCommand(JsonDocument& doc) {
         }
 
         // Bounded movement check
-        if (target_deg < ax->limit_min || target_deg > ax->limit_max) {
+        if (axis_id == 1) {
+            target = doc["target_mm"] | target;
+        } else {
+            target = doc["target_deg"] | target;
+        }
+        if (target < ax->limit_min || target > ax->limit_max) {
             sendResponse(id, false, "rejected", "Target exceeds software travel limits");
             return;
         }
 
-        speed = constrain(speed, 0.1f, MAX_SPEED_DPS);
-        ax->speed_deg_s = speed;
-        ax->target_deg = target_deg;
-        ax->target_step = (long)(target_deg * ax->steps_per_deg);
+        speed = constrain(speed, 0.1f, axis_id == 1 ? MAX_SPEED_AXIS1 : MAX_SPEED_AXIS2);
+        ax->speed_units_s = speed;
+        ax->target_position = target;
+        ax->target_step = (long)(target * ax->steps_per_unit);
         
-        float steps_per_sec = speed * ax->steps_per_deg;
+        float steps_per_sec = speed * ax->steps_per_unit;
         if (steps_per_sec > 0.0f) {
             ax->step_interval_us = (unsigned long)(1000000.0f / steps_per_sec);
         }
@@ -362,8 +368,8 @@ void handleCommand(JsonDocument& doc) {
 
     if (strcmp(cmd, "MOVE_REL") == 0) {
         int axis_id = doc["axis"] | 0;
-        float delta_deg = doc["delta_deg"] | 0.0f;
-        float speed = doc["speed"] | DEFAULT_SPEED_DPS;
+        float delta = doc["delta"] | 0.0f;
+        float speed = doc["speed"] | ((axis_id == 1) ? DEFAULT_SPEED_AXIS1 : DEFAULT_SPEED_AXIS2);
 
         if (!g_motors_enabled) {
             sendResponse(id, false, "rejected", "Motors disabled");
@@ -376,18 +382,23 @@ void handleCommand(JsonDocument& doc) {
             return;
         }
 
-        float target_deg = ax->current_deg + delta_deg;
-        if (target_deg < ax->limit_min || target_deg > ax->limit_max) {
+        if (axis_id == 1) {
+            delta = doc["delta_mm"] | delta;
+        } else {
+            delta = doc["delta_deg"] | delta;
+        }
+        float target = ax->current_position + delta;
+        if (target < ax->limit_min || target > ax->limit_max) {
             sendResponse(id, false, "rejected", "Target exceeds software travel limits");
             return;
         }
 
-        speed = constrain(speed, 0.1f, MAX_SPEED_DPS);
-        ax->speed_deg_s = speed;
-        ax->target_deg = target_deg;
-        ax->target_step = (long)(target_deg * ax->steps_per_deg);
+        speed = constrain(speed, 0.1f, axis_id == 1 ? MAX_SPEED_AXIS1 : MAX_SPEED_AXIS2);
+        ax->speed_units_s = speed;
+        ax->target_position = target;
+        ax->target_step = (long)(target * ax->steps_per_unit);
 
-        float steps_per_sec = speed * ax->steps_per_deg;
+        float steps_per_sec = speed * ax->steps_per_unit;
         if (steps_per_sec > 0.0f) {
             ax->step_interval_us = (unsigned long)(1000000.0f / steps_per_sec);
         }
@@ -432,13 +443,13 @@ void sendTelemetry() {
 
     JsonObject a1 = axes.add<JsonObject>();
     a1["axis"] = 1;
-    a1["position_deg"] = axis1.current_deg;
+    a1["position_mm"] = axis1.current_position;
     a1["homed"] = axis1.is_homed;
     a1["moving"] = axis1.is_moving;
 
     JsonObject a2 = axes.add<JsonObject>();
     a2["axis"] = 2;
-    a2["position_deg"] = axis2.current_deg;
+    a2["position_deg"] = axis2.current_position;
     a2["homed"] = axis2.is_homed;
     a2["moving"] = axis2.is_moving;
 
@@ -451,11 +462,11 @@ void sendTelemetry() {
 // ----------------------------------------------------------------------------
 void emergencyStop() {
     axis1.target_step = axis1.current_step;
-    axis1.target_deg  = axis1.current_deg;
+    axis1.target_position = axis1.current_position;
     axis1.is_moving   = false;
 
     axis2.target_step = axis2.current_step;
-    axis2.target_deg  = axis2.current_deg;
+    axis2.target_position = axis2.current_position;
     axis2.is_moving   = false;
 }
 
@@ -485,8 +496,8 @@ void homeAxis(int axis_num) {
     // Zero position
     ax->current_step = 0;
     ax->target_step  = 0;
-    ax->current_deg  = 0.0f;
-    ax->target_deg   = 0.0f;
+    ax->current_position = 0.0f;
+    ax->target_position  = 0.0f;
     ax->is_moving    = false;
     ax->is_homed     = true;
 }

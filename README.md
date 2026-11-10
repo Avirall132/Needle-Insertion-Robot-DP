@@ -1,6 +1,6 @@
 # Teleoperated Robotic Needle Insertion System
 
-A real-time Python desktop workstation for teleoperating a **Universal Robots UR7e** robotic arm and an **ESP32-driven 2-DOF needle insertion end-effector**, integrated with live OpenCV and ML-based needle detection.
+A real-time Python desktop workstation for teleoperating a **Universal Robots UR7e** robotic arm and an **ESP32-driven 2-DOF needle positioning end-effector**. The end-effector provides linear needle insertion/retraction and adjustment of the needle-guide angle through a circular guide.
 
 Designed for healthcare-related research experiments on fixtures and tissue phantoms.
 
@@ -83,7 +83,7 @@ needle_robot/
 - **Commands**: `CONNECT`, `DISCONNECT`, `ENABLE`, `DISABLE`, `MOVE_ABS`, `MOVE_REL`, `HOME`, `STOP`, `HEARTBEAT`.
 - **Safety**:
   - Software watchdog (2000 ms timeout) on ESP32; automatically halts motor pulses if PC communication ceases.
-  - Movement commands are rejected until calibrated motor parameters (steps/degree, travel limits) are set.
+  - Movement commands are rejected until calibrated motor parameters (steps/mm for insertion, steps/degree for guide angle, travel limits) are set.
   - Reports estimated positions for open-loop steppers.
 
 ### Subsystem C: Live ML Needle Detection
@@ -172,7 +172,7 @@ python main.py
 ### GUI Layout:
 1. **Header Bar**: Subsystem status indicators (UR7e, ESP32, Vision), Simulation mode banner, and prominent **ALL STOP** button.
 2. **Left Panel (Top)**: UR7e 6-Axis Joint & Cartesian jog controls with step increment, speed sliders, and live TCP pose readouts.
-3. **Left Panel (Bottom)**: ESP32 2-Axis End-Effector controls (Insertion & Rotation) with motor enable toggle, homing, and port selector.
+3. **Left Panel (Bottom)**: ESP32 2-Axis End-Effector controls (Insertion & Guide Angle) with motor enable toggle, homing, and port selector.
 4. **Right Panel**: High-resolution camera feed with needle detection bounding box, confidence score, FPS counter, and threshold adjustment.
 5. **Bottom Panel**: System Activity & Safety Audit Log tracking every command, acknowledgement, and safety event with millisecond timestamps.
 
@@ -187,8 +187,8 @@ To transition from the tested simulation mode to the physical robot and end-effe
 | **UR7e IP Address** | e.g. `192.168.1.100` | `config.json` -> `robot.ip` |
 | **PolyScope Version** | PolyScope 5.x | Verified via UR Teach Pendant |
 | **ESP32 COM Port** | e.g. `COM3` (Win) or `/dev/ttyUSB0` (Linux) | `config.json` -> `esp32.serial_port` |
-| **Axis 1 (Insertion) Ratio** | Steps/degree or steps/mm | `firmware/esp32_controller/esp32_controller.ino` |
-| **Axis 2 (Rotation) Ratio** | Steps/degree | `firmware/esp32_controller/esp32_controller.ino` |
+| **Axis 1 (Insertion) Ratio** | Steps/mm | `firmware/esp32_controller/esp32_controller.ino` |
+| **Axis 2 (Guide Angle) Ratio** | Steps/degree | `firmware/esp32_controller/esp32_controller.ino` |
 | **Mechanical Travel Limits** | Min/Max physical limits | `esp32_controller.py` & firmware |
 | **Needle Detection Model** | Trained `.pt` or `.onnx` file | Place in `models/` & set in `config.json` |
 

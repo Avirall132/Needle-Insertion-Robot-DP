@@ -90,7 +90,7 @@ def main() -> int:
     # For development/demonstration, allow movement in simulation mode
     if cfg.application.simulation_mode:
         esp32_controller.set_motor_parameters(
-            axis1_steps_per_deg=8.889,
+            axis1_steps_per_mm=8.889,
             axis2_steps_per_deg=8.889,
             axis1_limits=(-180.0, 180.0),
             axis2_limits=(-360.0, 360.0),
