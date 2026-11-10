@@ -7,31 +7,31 @@ from PySide6.QtWidgets import QLabel
 # ---------------------------------------------------------------------------
 # Palette
 # ---------------------------------------------------------------------------
-_BG_BASE    = "#0b0f14"
-_BG_PANEL   = "#111820"
-_BG_SECTION = "#17212b"
-_BG_INPUT   = "#0a1016"
-_BG_HEADER  = "#0c131a"
+_BG_BASE    = "#f0f0f0"
+_BG_PANEL   = "#ffffff"
+_BG_SECTION = "#ffffff"
+_BG_INPUT   = "#ffffff"
+_BG_HEADER  = "#f0f0f0"
 
-_BORDER       = "#25313d"
-_BORDER_MID   = "#344353"
-_BORDER_FOCUS = "#58a6d8"
+_BORDER       = "#adadad"
+_BORDER_MID   = "#d4d4d4"
+_BORDER_FOCUS = "#3a6ea5"
 
-_TEXT_PRIMARY = "#e6edf3"
-_TEXT_DIM     = "#8d9aaa"
-_TEXT_MONO    = "#c7d4df"
-_TEXT_HEADER  = "#f3f7fa"
+_TEXT_PRIMARY = "#1a1a1a"
+_TEXT_DIM     = "#5a5a5a"
+_TEXT_MONO    = "#1a1a1a"
+_TEXT_HEADER  = "#1a1a1a"
 
-_GREEN     = "#42c883"
-_AMBER     = "#e6b45c"
-_RED       = "#e2636f"
-_ACCENT    = "#58a6d8"
-_GRAY_IDLE = "#536273"
+_GREEN     = "#2e7d32"
+_AMBER     = "#b26a00"
+_RED       = "#c62828"
+_ACCENT    = "#3a6ea5"
+_GRAY_IDLE = "#777777"
 
-_BUTTON_BG       = "#1a2732"
-_BUTTON_HOVER    = "#233544"
-_BUTTON_PRESSED  = "#14202a"
-_BUTTON_DISABLED = "#131b23"
+_BUTTON_BG       = "#e1e1e1"
+_BUTTON_HOVER    = "#e9e9e9"
+_BUTTON_PRESSED  = "#d0d0d0"
+_BUTTON_DISABLED = "#eeeeee"
 
 # ---------------------------------------------------------------------------
 # Public tokens (imported across the interface package)
@@ -42,12 +42,12 @@ COLOR_BG_INPUT   = _BG_INPUT
 COLOR_BG_HEADER  = _BG_HEADER
 
 COLOR_ACCENT         = _ACCENT
-COLOR_ACCENT_HOVER   = "#5a9fea"
-COLOR_ACCENT_PRESSED = "#3a7ac0"
+COLOR_ACCENT_HOVER   = "#4b7fb2"
+COLOR_ACCENT_PRESSED = "#2f5c89"
 
 COLOR_ALERT         = _RED
-COLOR_ALERT_HOVER   = "#e96878"
-COLOR_ALERT_PRESSED = "#c83b4c"
+COLOR_ALERT_HOVER   = "#a51f1f"
+COLOR_ALERT_PRESSED = "#8f1b1b"
 
 COLOR_TEXT      = _TEXT_PRIMARY
 COLOR_TEXT_DIM  = _TEXT_DIM
@@ -72,8 +72,8 @@ COLOR_GROUPBOX_BORDER = _BORDER
 COLOR_GROUPBOX_TITLE  = _TEXT_DIM
 
 COLOR_SCROLLBAR_BG           = _BG_INPUT
-COLOR_SCROLLBAR_HANDLE       = "#2c3038"
-COLOR_SCROLLBAR_HANDLE_HOVER = "#3a4049"
+COLOR_SCROLLBAR_HANDLE       = "#b5b5b5"
+COLOR_SCROLLBAR_HANDLE_HOVER = "#8f8f8f"
 
 COLOR_TAB_BG       = _BG_PANEL
 COLOR_TAB_SELECTED = _BG_PANEL
@@ -86,8 +86,8 @@ DARK_STYLESHEET = """
 QWidget {
     background-color: %(bg)s;
     color: %(text)s;
-    font-family: "Segoe UI", "Inter", "Arial", sans-serif;
-    font-size: 12px;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
 }
 
 QMainWindow, QScrollArea, QScrollArea > QWidget > QWidget {
@@ -118,18 +118,19 @@ QLabel[objectName="statusDot"] {
 QFrame#headerBar {
     background-color: %(header)s;
     border: none;
-    border-bottom: 1px solid %(border_mid)s;
+    border-top: 3px solid %(accent)s;
+    border-bottom: 1px solid %(border)s;
 }
 
 /* Buttons ---------------------------------------------------------------- */
 QPushButton {
     background-color: %(btn)s;
     color: %(text)s;
-    border: 1px solid %(border_mid)s;
-    border-radius: 5px;
-    padding: 6px 13px;
-    min-height: 26px;
-    font-weight: 600;
+    border: 1px solid %(border)s;
+    border-radius: 2px;
+    padding: 4px 12px;
+    min-height: 28px;
+    font-weight: normal;
 }
 
 QPushButton:hover   { background-color: %(btn_hover)s; }
@@ -138,15 +139,15 @@ QPushButton:focus   { border-color: %(accent)s; }
 
 QPushButton:disabled {
     background-color: %(btn_disabled)s;
-    color: #414652;
+    color: #888888;
     border-color: %(border)s;
 }
 
 QPushButton[objectName="stopButton"] {
     background-color: %(alert)s;
     color: #ffffff;
-    border: 1px solid %(alert_hover)s;
-    border-radius: 5px;
+    border: 1px solid %(alert)s;
+    border-radius: 2px;
     font-weight: 700;
     font-size: 12px;
     padding: 4px 15px;
@@ -157,28 +158,28 @@ QPushButton[objectName="stopButton"]:hover   { background-color: %(alert_hover)s
 QPushButton[objectName="stopButton"]:pressed { background-color: %(alert_pressed)s; }
 
 QPushButton[objectName="connectButton"] {
-    background-color: #173126;
-    border-color: #367251;
-    color: #bcebd0;
+    background-color: %(btn)s;
+    border-color: %(border)s;
+    color: %(text)s;
 }
 
 QPushButton[objectName="disconnectButton"] {
-    background-color: #321b21;
-    border-color: #7a3944;
-    color: #f5c2c8;
+    background-color: %(btn)s;
+    border-color: %(border)s;
+    color: %(text)s;
 }
 
 QPushButton[objectName="jogButton"] {
-    min-width: 54px;
-    min-height: 38px;
+    min-width: 32px;
+    min-height: 32px;
     padding: 0;
-    font-size: 18px;
-    font-weight: 600;
-    background-color: #1a2a37;
+    font-size: 16px;
+    background-color: %(btn)s;
+    border-radius: 2px;
 }
 
 QPushButton[objectName="jogButton"]:hover {
-    background-color: #232b38;
+    background-color: %(btn_hover)s;
     border-color: %(accent)s;
 }
 
@@ -186,9 +187,9 @@ QPushButton[objectName="jogButton"]:hover {
 QGroupBox {
     background-color: %(panel)s;
     border: 1px solid %(border)s;
-    border-radius: 7px;
-    margin-top: 18px;
-    padding: 16px 14px 14px 14px;
+    border-radius: 2px;
+    margin-top: 16px;
+    padding: 11px 12px 12px 12px;
 }
 
 QGroupBox::title {
@@ -198,19 +199,18 @@ QGroupBox::title {
     top: 0;
     padding: 0;
     color: %(dim)s;
-    background: %(panel)s;
+    background: %(bg)s;
     border: none;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.8px;
+    font-size: 12px;
+    font-weight: normal;
 }
 
 /* Inputs ----------------------------------------------------------------- */
 QDoubleSpinBox, QSpinBox, QComboBox, QLineEdit {
     background-color: %(input)s;
     color: %(text)s;
-    border: 1px solid %(border_mid)s;
-    border-radius: 4px;
+    border: 1px solid %(border)s;
+    border-radius: 2px;
     padding: 4px 7px;
     min-height: 26px;
     selection-background-color: %(accent)s;
@@ -239,7 +239,7 @@ QComboBox::down-arrow {
 QComboBox QAbstractItemView {
     background-color: %(input)s;
     color: %(text)s;
-    border: 1px solid %(border_mid)s;
+    border: 1px solid %(border)s;
     selection-background-color: %(accent)s;
     selection-color: #ffffff;
 }
@@ -268,7 +268,7 @@ QDoubleSpinBox::down-arrow, QSpinBox::down-arrow {
 /* Sliders ---------------------------------------------------------------- */
 QSlider::groove:horizontal {
     height: 4px;
-    background: #2a3946;
+    background: #d4d4d4;
     border: none;
     border-radius: 2px;
 }
@@ -277,13 +277,13 @@ QSlider::handle:horizontal {
     width: 14px;
     height: 14px;
     margin: -5px 0;
-    border-radius: 6px;
+    border-radius: 50%%;
     background: %(accent)s;
     border: none;
 }
 
 QSlider::handle:horizontal:hover { background: %(accent_hover)s; }
-QSlider::sub-page:horizontal    { background: #2f4d6d; border-radius: 2px; }
+QSlider::sub-page:horizontal    { background: #9fb6cf; border-radius: 2px; }
 
 /* Scrollbars ------------------------------------------------------------- */
 QScrollBar:vertical {
@@ -295,7 +295,7 @@ QScrollBar:vertical {
 QScrollBar::handle:vertical {
     background: %(scroll)s;
     min-height: 28px;
-    border-radius: 4px;
+    border-radius: 2px;
 }
 
 QScrollBar::handle:vertical:hover { background: %(scroll_hover)s; }
@@ -312,7 +312,7 @@ QScrollBar:horizontal {
 QScrollBar::handle:horizontal {
     background: %(scroll)s;
     min-width: 28px;
-    border-radius: 4px;
+    border-radius: 2px;
 }
 
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }
@@ -374,10 +374,10 @@ QToolTip {
     "header":        _BG_HEADER,
     "input":         _BG_INPUT,
     "accent":        _ACCENT,
-    "accent_hover":  "#5a9fea",
+    "accent_hover":  COLOR_ACCENT_HOVER,
     "alert":         _RED,
-    "alert_hover":   "#e96878",
-    "alert_pressed": "#c83b4c",
+    "alert_hover":   COLOR_ALERT_HOVER,
+    "alert_pressed": COLOR_ALERT_PRESSED,
     "text":          _TEXT_PRIMARY,
     "mono":          _TEXT_MONO,
     "dim":           _TEXT_DIM,

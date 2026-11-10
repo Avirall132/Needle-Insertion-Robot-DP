@@ -124,7 +124,7 @@ class MainWindow(QMainWindow):
         root_splitter.addWidget(log_widget)
         root_splitter.setStretchFactor(0, 1)
         root_splitter.setStretchFactor(1, 0)
-        root_splitter.setSizes([560, 210])
+        root_splitter.setSizes([500, 270])
 
         main_layout.addWidget(root_splitter, stretch=1)
 
@@ -132,48 +132,43 @@ class MainWindow(QMainWindow):
     def _build_header(self) -> QWidget:
         header = QFrame()
         header.setObjectName("headerBar")
-        header.setFixedHeight(64)
+        header.setFixedHeight(60)
 
         layout = QHBoxLayout(header)
-        layout.setContentsMargins(14, 0, 12, 0)
-        layout.setSpacing(7)
-
-        mark = QLabel("N")
-        mark.setFixedSize(30, 30)
-        mark.setAlignment(Qt.AlignCenter)
-        mark.setStyleSheet(
-            "background: #183142; color: #8ed3f0; border: 1px solid #3c728f;"
-            " border-radius: 5px; font-size: 16px; font-weight: 700;"
-        )
-        layout.addWidget(mark)
+        layout.setContentsMargins(18, 0, 14, 0)
+        layout.setSpacing(10)
 
         identity = QVBoxLayout()
-        identity.setSpacing(1)
+        identity.setSpacing(0)
 
-        title = QLabel("NEEDLE MOTION CONTROL")
-        title_font = QFont("Segoe UI", 10)
+        title = QLabel("Needle Motion Control")
+        title_font = QFont("Segoe UI", 14)
         title_font.setBold(True)
         title.setFont(title_font)
-        title.setStyleSheet("color: #f3f7fa; letter-spacing: 1px;")
+        title.setStyleSheet("color: #1a1a1a;")
         identity.addWidget(title)
 
-        subtitle = QLabel("2-DOF END-EFFECTOR  /  TELEOP")
-        subtitle.setStyleSheet("color: #8293a4; font-size: 8px; letter-spacing: 0.6px;")
+        subtitle = QLabel("Two-axis needle end-effector")
+        subtitle.setStyleSheet("color: #5a5a5a; font-size: 11px;")
         identity.addWidget(subtitle)
-        layout.addLayout(identity)
+
+        identity_widget = QWidget()
+        identity_widget.setLayout(identity)
+        identity_widget.setMinimumWidth(190)
+        layout.addWidget(identity_widget)
 
         is_sim = self._cfg.application.simulation_mode
-        badge = QLabel("SIM" if is_sim else "HW")
+        badge = QLabel("SIM" if is_sim else "LIVE")
         badge.setAlignment(Qt.AlignCenter)
         badge.setMinimumWidth(38)
         badge.setStyleSheet(
             f"color: {_AMBER if is_sim else COLOR_STATUS_CONNECTED};"
-            "background: #17212b; border: 1px solid #344353; border-radius: 4px;"
-            "padding: 3px 7px; font-size: 10px; font-weight: 700;"
+            "background: transparent; border: 1px solid #adadad; border-radius: 2px;"
+            "padding: 2px 7px; font-size: 12px;"
         )
         layout.addWidget(badge)
 
-        layout.addSpacing(10)
+        layout.addSpacing(4)
 
         self._hdr_esp_indicator = create_status_indicator(COLOR_STATUS_DISCONNECTED, 8)
         layout.addWidget(self._hdr_esp_indicator)
@@ -181,7 +176,7 @@ class MainWindow(QMainWindow):
         self._hdr_esp_text.setStyleSheet(f"color: {COLOR_TEXT_DIM};")
         layout.addWidget(self._hdr_esp_text)
 
-        layout.addSpacing(10)
+        layout.addSpacing(8)
 
         self._hdr_motor_indicator = create_status_indicator(COLOR_STATUS_DISCONNECTED, 8)
         layout.addWidget(self._hdr_motor_indicator)
@@ -193,7 +188,7 @@ class MainWindow(QMainWindow):
 
         self._master_stop_btn = QPushButton("ALL STOP")
         self._master_stop_btn.setObjectName("stopButton")
-        self._master_stop_btn.setFixedSize(126, 36)
+        self._master_stop_btn.setFixedSize(118, 36)
         self._master_stop_btn.setToolTip("Stop all needle motion  [Space]")
         self._master_stop_btn.clicked.connect(self._handle_master_stop)
         layout.addWidget(self._master_stop_btn)
@@ -201,7 +196,7 @@ class MainWindow(QMainWindow):
         return header
 
     def _build_log_panel(self) -> QWidget:
-        box = QGroupBox("EVENT LOG  /  SAFETY AUDIT")
+        box = QGroupBox("Event log")
         layout = QVBoxLayout(box)
         layout.setContentsMargins(0, 4, 0, 0)
         layout.setSpacing(8)
@@ -211,13 +206,13 @@ class MainWindow(QMainWindow):
         self._log_text.setMaximumBlockCount(1000)
         self._log_text.setStyleSheet(
             "QPlainTextEdit {"
-            "  background-color: #0a1016;"
-            "  color: #aebdca;"
+            "  background-color: #ffffff;"
+            "  color: #1a1a1a;"
             "  font-family: 'Consolas', 'Courier New', monospace;"
-            "  font-size: 11px;"
-            "  border: 1px solid #25313d;"
-            "  border-radius: 5px;"
-            "  padding: 8px;"
+            "  font-size: 12px;"
+            "  border: 1px solid #adadad;"
+            "  border-radius: 2px;"
+            "  padding: 6px;"
             "}"
         )
         layout.addWidget(self._log_text)
@@ -307,7 +302,7 @@ class MainWindow(QMainWindow):
         if connected:
             update_status_indicator(self._hdr_esp_indicator, COLOR_STATUS_CONNECTED, 8)
             self._hdr_esp_text.setText("End-effector online")
-            self._hdr_esp_text.setStyleSheet("color: #e2e6ee;")
+            self._hdr_esp_text.setStyleSheet("color: #1a1a1a;")
             self.log_message("ESP32", "Connected to end-effector controller.")
         else:
             update_status_indicator(self._hdr_esp_indicator, COLOR_STATUS_DISCONNECTED, 8)
@@ -326,7 +321,7 @@ class MainWindow(QMainWindow):
             8,
         )
         self._hdr_motor_text.setText("Motors on" if enabled else "Motors off")
-        self._hdr_motor_text.setStyleSheet("color: #e2e6ee;" if enabled else f"color: {COLOR_TEXT_DIM};")
+        self._hdr_motor_text.setStyleSheet("color: #1a1a1a;" if enabled else f"color: {COLOR_TEXT_DIM};")
 
         self._apply_axes(status.get("axes", []))
 

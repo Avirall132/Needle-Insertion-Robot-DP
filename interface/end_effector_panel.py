@@ -45,10 +45,10 @@ AXIS_UNITS = {
     2: "°",
 }
 
-_TEXT   = "#e2e6ee"
-_DIM    = "#7d8496"
-_RED    = "#e05263"
-_GREEN  = "#35c46f"
+_TEXT   = "#1a1a1a"
+_DIM    = "#5a5a5a"
+_RED    = "#c62828"
+_GREEN  = "#2e7d32"
 
 
 class EndEffectorPanel(QWidget):
@@ -119,13 +119,13 @@ class EndEffectorPanel(QWidget):
         axis_layout.setSpacing(0)
         axis_layout.addWidget(
             self._build_axis(
-                1, "AXIS 1  ·  NEEDLE INSERTION",
+                    1, "Axis 1 - Needle insertion",
                 default_step=1.0, default_speed=20, unit="mm",
             )
         )
         axis_layout.addWidget(
             self._build_axis(
-                2, "AXIS 2  ·  NEEDLE ROTATION",
+                    2, "Axis 2 - Needle rotation",
                 default_step=15.0, default_speed=25, unit="°",
             )
         )
@@ -137,7 +137,7 @@ class EndEffectorPanel(QWidget):
 
     # ------------------------------------------------------------------
     def _build_connection_section(self) -> None:
-        group = QGroupBox("END-EFFECTOR")
+        group = QGroupBox("End-effector")
         layout = QVBoxLayout(group)
         layout.setSpacing(12)
         layout.setContentsMargins(0, 4, 0, 0)
@@ -146,8 +146,8 @@ class EndEffectorPanel(QWidget):
         connection_column = QVBoxLayout()
         connection_column.setSpacing(6)
 
-        connection_label = QLabel("SERIAL LINK")
-        connection_label.setStyleSheet("color: #8d9aaa; font-size: 10px; font-weight: 700;")
+        connection_label = QLabel("Serial link")
+        connection_label.setStyleSheet("color: #5a5a5a; font-size: 13px;")
         connection_column.addWidget(connection_label)
 
         row = QHBoxLayout()
@@ -182,8 +182,8 @@ class EndEffectorPanel(QWidget):
         motor_column = QVBoxLayout()
         motor_column.setSpacing(6)
 
-        motor_label = QLabel("DRIVER STATE")
-        motor_label.setStyleSheet("color: #8d9aaa; font-size: 10px; font-weight: 700;")
+        motor_label = QLabel("Driver state")
+        motor_label.setStyleSheet("color: #5a5a5a; font-size: 13px;")
         motor_column.addWidget(motor_label)
 
         motor_row = QHBoxLayout()
@@ -222,7 +222,7 @@ class EndEffectorPanel(QWidget):
         default_speed: int,
         unit: str = "°",
     ) -> QGroupBox:
-        group = QGroupBox(title)
+        group = QGroupBox(title.title())
         layout = QVBoxLayout(group)
         layout.setSpacing(14)
         layout.setContentsMargins(0, 4, 0, 0)
@@ -233,8 +233,8 @@ class EndEffectorPanel(QWidget):
 
         value = QLabel(f"+0.00 {unit}")
         value.setStyleSheet(
-            "font-family: 'Consolas','Courier New',monospace; font-size: 30px;"
-            f" font-weight: 600; color: {_TEXT};"
+            "font-family: 'Consolas','Courier New',monospace; font-size: 24px;"
+            f" font-weight: normal; color: {_TEXT};"
         )
         self._axis_position_labels.append(value)
         readout.addWidget(value)
@@ -251,8 +251,8 @@ class EndEffectorPanel(QWidget):
         readout.addStretch()
 
         lo, hi = AXIS_LIMITS[axis]
-        limits = QLabel(f"TRAVEL  {lo:g} {unit}  to  {hi:g} {unit}")
-        limits.setStyleSheet(f"color: {_DIM}; font-size: 10px; letter-spacing: 0.3px;")
+        limits = QLabel(f"Travel: {lo:g} to {hi:g} {unit}")
+        limits.setStyleSheet(f"color: {_DIM}; font-size: 12px;")
         readout.addWidget(limits)
 
         layout.addLayout(readout)
@@ -261,8 +261,8 @@ class EndEffectorPanel(QWidget):
         controls = QHBoxLayout()
         controls.setSpacing(9)
 
-        step_label = QLabel("STEP")
-        step_label.setStyleSheet(f"color: {_DIM}; font-size: 10px; font-weight: 700;")
+        step_label = QLabel("Step")
+        step_label.setStyleSheet(f"color: {_DIM}; font-size: 13px;")
         controls.addWidget(step_label)
 
         step = QDoubleSpinBox()
@@ -277,8 +277,8 @@ class EndEffectorPanel(QWidget):
 
         controls.addSpacing(10)
 
-        speed_label = QLabel("SPEED")
-        speed_label.setStyleSheet(f"color: {_DIM}; font-size: 10px; font-weight: 700;")
+        speed_label = QLabel("Speed")
+        speed_label.setStyleSheet(f"color: {_DIM}; font-size: 13px;")
         controls.addWidget(speed_label)
 
         slider = QSlider(Qt.Horizontal)
