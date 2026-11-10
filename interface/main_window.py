@@ -41,8 +41,7 @@ from controllers.ur_controller import URController
 from interface.end_effector_panel import EndEffectorPanel
 from interface.robot_panel import RobotPanel
 from interface.styles import (
-    COLOR_ACCENT_PRIMARY,
-    COLOR_BG_CONTAINER,
+    COLOR_ACCENT,
     COLOR_BG_DARK,
     COLOR_BG_PANEL,
     COLOR_BORDER,

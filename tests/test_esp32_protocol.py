@@ -47,12 +47,14 @@ def test_esp32_sequence_ids():
 def test_esp32_movement_safety_unconfigured_rejection():
     # Per safety requirements: real movement must NOT be allowed
     # until calibration / motor parameters are entered
-    ctrl = ESP32Controller(simulation_mode=False)  # Non-simulated needs configured params
+    ctrl = ESP32Controller(simulation_mode=True, motor_params_configured=False)
+    ctrl.connect("COM3")
     assert not ctrl.motor_params_configured
 
     resp = ctrl.move_axis(axis=1, target_deg=30.0, speed=10.0)
     assert resp.get("ok") is False
     assert "not configured" in resp.get("error", "").lower()
+    ctrl.disconnect()
 
 
 def test_esp32_configured_movement_and_limits():

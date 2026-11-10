@@ -92,6 +92,11 @@ class NeedleDetector(ABC):
         return self._loaded
 
     @property
+    def model_path(self) -> Optional[str]:
+        """Path to the loaded model file, or None."""
+        return self._model_path
+
+    @property
     def status_message(self) -> str:
         """Human-readable status string."""
         return self._status_message
