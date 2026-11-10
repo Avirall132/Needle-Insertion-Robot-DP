@@ -174,6 +174,16 @@ class CameraManager:
     # ------------------------------------------------------------------
 
     @property
+    def resolution(self) -> Tuple[int, int]:
+        """Return the current or requested capture resolution (width, height)."""
+        return self.camera_info["resolution"]
+
+    @property
+    def fps(self) -> int:
+        """Return the current or requested capture FPS."""
+        return self.camera_info["fps"]
+
+    @property
     def is_connected(self) -> bool:
         """Return True if the camera is currently open and readable."""
         with self._lock:

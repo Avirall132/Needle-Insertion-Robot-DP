@@ -77,6 +77,14 @@ class ESP32Controller:
         self._simulation_mode = simulation_mode
         self._watchdog_timeout = watchdog_timeout
         self._motor_params_configured = motor_params_configured
+        self._axis_limits: Dict[int, tuple] = {
+            0: (-180.0, 180.0),
+            1: (-360.0, 360.0),
+        }
+        self._steps_per_deg: Dict[int, float] = {
+            0: 8.88889,
+            1: 8.88889,
+        }
 
         # Serial handle (real mode)
         self._serial = None  # serial.Serial
@@ -320,17 +328,38 @@ class ESP32Controller:
         return self._pending_response
 
     # ------------------------------------------------------------------
-    # High-level motion commands
+    # High-level motion commands & Configuration
     # ------------------------------------------------------------------
-    def _check_movement_allowed(self) -> None:
-        """Raise if movement is not safe."""
+    def set_motor_parameters(
+        self,
+        axis1_steps_per_deg: Optional[float] = None,
+        axis2_steps_per_deg: Optional[float] = None,
+        axis1_limits: Optional[Tuple[float, float]] = None,
+        axis2_limits: Optional[Tuple[float, float]] = None,
+    ) -> None:
+        """Configure motor calibration and travel limits, enabling movement."""
+        with self._lock:
+            if axis1_steps_per_deg is not None:
+                self._steps_per_deg[0] = float(axis1_steps_per_deg)
+            if axis2_steps_per_deg is not None:
+                self._steps_per_deg[1] = float(axis2_steps_per_deg)
+            if axis1_limits is not None:
+                self._axis_limits[0] = axis1_limits
+            if axis2_limits is not None:
+                self._axis_limits[1] = axis2_limits
+            self._motor_params_configured = True
+            logger.info("Motor parameters configured: limits=%s", self._axis_limits)
+
+    def _check_movement_allowed(self) -> Optional[dict]:
+        """Check if movement is safe; returns error response dict if not allowed."""
         if not self._connected:
-            raise RuntimeError("Not connected to ESP32.")
+            return {"ok": False, "error": "Not connected to ESP32."}
         if not self._motor_params_configured:
-            raise RuntimeError(
-                "Motor parameters not configured.  Set "
-                "motor_params_configured = True after configuring."
-            )
+            return {
+                "ok": False,
+                "error": "Motor parameters not configured. Calibration required.",
+            }
+        return None
 
     def move_axis(self, axis: int, target_deg: float, speed: float = 100.0) -> Optional[dict]:
         """
@@ -339,18 +368,32 @@ class ESP32Controller:
         Parameters
         ----------
         axis : int
-            0 or 1.
+            0 or 1 (or 1 or 2, 1-based).
         target_deg : float
             Target position in degrees.
         speed : float
             Movement speed (device units).
         """
         with self._lock:
-            self._check_movement_allowed()
-            if not (0 <= axis < NUM_AXES):
-                raise ValueError(f"axis must be 0–{NUM_AXES - 1}, got {axis}.")
+            err = self._check_movement_allowed()
+            if err is not None:
+                return err
+
+            # Normalize 1-based (1, 2) to 0-based (0, 1)
+            norm_axis = axis - 1 if axis in (1, 2) else axis
+            if not (0 <= norm_axis < NUM_AXES):
+                return {"ok": False, "error": f"Invalid axis: {axis}."}
+
+            # Check travel limits
+            limits = self._axis_limits.get(norm_axis, (-180.0, 180.0))
+            if target_deg < limits[0] or target_deg > limits[1]:
+                return {
+                    "ok": False,
+                    "error": f"Target {target_deg:.2f}° exceeds axis {axis} limit [{limits[0]}, {limits[1]}].",
+                }
+
             return self._send_command_unlocked(
-                CMD_MOVE_ABS, axis=axis, target=target_deg, speed=speed
+                CMD_MOVE_ABS, axis=norm_axis, target=target_deg, speed=speed
             )
 
     def move_axis_relative(self, axis: int, delta_deg: float, speed: float = 100.0) -> Optional[dict]:
@@ -360,18 +403,23 @@ class ESP32Controller:
         Parameters
         ----------
         axis : int
-            0 or 1.
+            0 or 1 (or 1 or 2, 1-based).
         delta_deg : float
-            Relative movement in degrees (positive or negative).
+            Relative movement in degrees.
         speed : float
-            Movement speed (device units).
+            Movement speed.
         """
         with self._lock:
-            self._check_movement_allowed()
-            if not (0 <= axis < NUM_AXES):
-                raise ValueError(f"axis must be 0–{NUM_AXES - 1}, got {axis}.")
+            err = self._check_movement_allowed()
+            if err is not None:
+                return err
+
+            norm_axis = axis - 1 if axis in (1, 2) else axis
+            if not (0 <= norm_axis < NUM_AXES):
+                return {"ok": False, "error": f"Invalid axis: {axis}."}
+
             return self._send_command_unlocked(
-                CMD_MOVE_REL, axis=axis, delta=delta_deg, speed=speed
+                CMD_MOVE_REL, axis=norm_axis, delta=delta_deg, speed=speed
             )
 
     def stop(self) -> Optional[dict]:
@@ -554,8 +602,9 @@ class ESP32Controller:
         if cmd == CMD_HOME:
             axis = params.get("axis")
             if axis is not None:
-                self._sim_positions[axis] = 0.0
-                self._sim_homed[axis] = True
+                norm_axis = axis - 1 if axis in (1, 2) else axis
+                self._sim_positions[norm_axis] = 0.0
+                self._sim_homed[norm_axis] = True
             else:
                 for i in range(NUM_AXES):
                     self._sim_positions[i] = 0.0
@@ -567,21 +616,29 @@ class ESP32Controller:
 
         if cmd == CMD_MOVE_ABS:
             axis = params.get("axis", 0)
+            norm_axis = axis - 1 if axis in (1, 2) else axis
             target = params.get("target", 0.0)
-            self._sim_positions[axis] = target
-            logger.debug("Sim MOVE_ABS axis=%d → %.2f°", axis, target)
+            self._sim_positions[norm_axis] = target
+            logger.debug("Sim MOVE_ABS axis=%d -> %.2f°", norm_axis, target)
             return base
 
         if cmd == CMD_MOVE_REL:
             axis = params.get("axis", 0)
+            norm_axis = axis - 1 if axis in (1, 2) else axis
             delta = params.get("delta", 0.0)
-            self._sim_positions[axis] += delta
-            logger.debug("Sim MOVE_REL axis=%d Δ %.2f° → %.2f°", axis, delta, self._sim_positions[axis])
+            self._sim_positions[norm_axis] += delta
+            logger.debug("Sim MOVE_REL axis=%d Δ %.2f° -> %.2f°", norm_axis, delta, self._sim_positions[norm_axis])
             return base
 
         if cmd == CMD_GET_STATUS:
+            base["connected"] = self._connected
             base["axes"] = [
-                {"position": self._sim_positions[i], "homed": self._sim_homed[i]}
+                {
+                    "axis": i + 1,
+                    "position": self._sim_positions[i],
+                    "position_deg": self._sim_positions[i],
+                    "homed": self._sim_homed[i],
+                }
                 for i in range(NUM_AXES)
             ]
             base["enabled"] = self._sim_enabled
