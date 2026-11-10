@@ -1,8 +1,8 @@
 # Teleoperated Robotic Needle Insertion System
 
-A real-time Python desktop workstation for teleoperating a **Universal Robots UR7e** robotic arm and an **ESP32-driven 2-DOF needle positioning end-effector**. The end-effector provides linear needle insertion/retraction and adjustment of the needle-guide angle through a circular guide.
+A real-time Python desktop workstation for manually teleoperating a **Universal Robots UR7e** robotic arm and an **ESP32-driven 2-DOF needle positioning end-effector**. The end-effector provides linear needle insertion/retraction and adjustment of the needle-guide angle through a circular guide.
 
-Designed for healthcare-related research experiments on fixtures and tissue phantoms.
+Designed for healthcare-related research experiments on fixtures and tissue phantoms. This is a manual teleoperation project: it does not depend on machine learning, deep learning, or computer-vision-based motion control.
 
 ---
 
@@ -24,23 +24,23 @@ needle_robot/
 │   ├── ur_controller.py        # UR7e controller (ur_rtde & simulation)
 │   └── esp32_controller.py     # ESP32 JSON-over-serial protocol controller
 │
-├── vision/                     # Computer vision & needle tracking
+├── vision/                     # Optional camera modules; not required for teleoperation
 │   ├── __init__.py
-│   ├── camera.py               # Thread-safe OpenCV video capture
-│   └── needle_detector.py      # Abstract detector (YOLO / ONNX / Mock)
+│   ├── camera.py               # Optional video capture
+│   └── needle_detector.py      # Optional, outside the core project scope
 │
 ├── workers/                    # Background QThread workers
 │   ├── __init__.py
 │   ├── ur_worker.py            # UR7e 10Hz telemetry & command queue
 │   ├── esp32_worker.py         # ESP32 5Hz telemetry & command queue
-│   └── vision_worker.py        # 30Hz frame capture, inference & annotation
+│   └── vision_worker.py        # Optional camera worker
 │
 ├── interface/                  # PySide6 industrial workstation GUI
 │   ├── __init__.py
 │   ├── main_window.py          # 4-section workstation window
 │   ├── robot_panel.py          # UR7e joint & Cartesian jog controls
 │   ├── end_effector_panel.py   # ESP32 2-axis controls & homing
-│   ├── vision_panel.py         # Live video feed & ML detection metrics
+│   ├── vision_panel.py         # Optional camera panel
 │   └── styles.py               # Dark industrial theme QSS & indicators
 │
 ├── firmware/                   # Microcontroller embedded code
@@ -48,15 +48,11 @@ needle_robot/
 │       ├── esp32_controller.ino# ESP32-S 2-axis stepper firmware
 │       └── README.md           # Wiring, pinouts & flashing guide
 │
-├── models/                     # ML model weights & specifications
-│   └── README.md               # Model format, input dimensions & guide
-│
 ├── tests/                      # Automated pytest suite
 │   ├── __init__.py
 │   ├── test_config.py          # Configuration loading & validation tests
 │   ├── test_ur_controller.py   # UR7e state, jogging & limit tests
 │   ├── test_esp32_protocol.py  # ESP32 protocol, sequence ID & limit tests
-│   ├── test_vision.py          # Camera & needle detector tests
 │   └── test_gui.py             # Main window integration test
 │
 └── logs/                       # Rotating application logs
@@ -86,13 +82,11 @@ needle_robot/
   - Movement commands are rejected until calibrated motor parameters (steps/mm for insertion, steps/degree for guide angle, travel limits) are set.
   - Reports estimated positions for open-loop steppers.
 
-### Subsystem C: Live ML Needle Detection
-- **Pipeline**: Camera → OpenCV BGR → PyTorch/ONNX Inference → Annotation → QImage RGB → GUI.
-- **Backends**:
-  - `.pt` PyTorch / TorchScript (Ultralytics YOLO)
-  - `.onnx` ONNX Runtime (CPU / CUDA)
-  - `MockDetector` fallback: used when no model is loaded. Continues streaming video with zero latency.
-- **Decoupling**: The ML model strictly provides visual overlays and metrics. It **never** issues robot motion commands.
+### Project Scope
+- All robot and end-effector motion is commanded manually by the operator through the workstation.
+- Axis 1 controls linear needle insertion and retraction.
+- Axis 2 adjusts the needle-guide angle through the circular guide.
+- Camera, computer-vision, machine-learning, and deep-learning modules are not required for operation and do not control either motor or the robot.
 
 ---
 
@@ -139,17 +133,6 @@ The system loads settings from `config.json`. Unknown safety parameters default 
         "baud_rate": 115200,
         "enabled": false
     },
-    "camera": {
-        "index": 0,
-        "width": 640,
-        "height": 480,
-        "fps": 30
-    },
-    "vision": {
-        "model_path": null,
-        "confidence_threshold": 0.40,
-        "enabled": false
-    },
     "application": {
         "simulation_mode": true,
         "log_level": "INFO"
@@ -170,10 +153,10 @@ python main.py
 ```
 
 ### GUI Layout:
-1. **Header Bar**: Subsystem status indicators (UR7e, ESP32, Vision), Simulation mode banner, and prominent **ALL STOP** button.
+1. **Header Bar**: UR7e and ESP32 status indicators, simulation mode banner, and prominent **ALL STOP** button.
 2. **Left Panel (Top)**: UR7e 6-Axis Joint & Cartesian jog controls with step increment, speed sliders, and live TCP pose readouts.
 3. **Left Panel (Bottom)**: ESP32 2-Axis End-Effector controls (Insertion & Guide Angle) with motor enable toggle, homing, and port selector.
-4. **Right Panel**: High-resolution camera feed with needle detection bounding box, confidence score, FPS counter, and threshold adjustment.
+4. **Right Panel**: Operator status, telemetry, and safety information; camera/vision is not required for control.
 5. **Bottom Panel**: System Activity & Safety Audit Log tracking every command, acknowledgement, and safety event with millisecond timestamps.
 
 ---
@@ -190,7 +173,6 @@ To transition from the tested simulation mode to the physical robot and end-effe
 | **Axis 1 (Insertion) Ratio** | Steps/mm | `firmware/esp32_controller/esp32_controller.ino` |
 | **Axis 2 (Guide Angle) Ratio** | Steps/degree | `firmware/esp32_controller/esp32_controller.ino` |
 | **Mechanical Travel Limits** | Min/Max physical limits | `esp32_controller.py` & firmware |
-| **Needle Detection Model** | Trained `.pt` or `.onnx` file | Place in `models/` & set in `config.json` |
 
 ---
 
