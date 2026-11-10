@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QScrollArea,
-    QSlider,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -91,7 +91,7 @@ class EndEffectorPanel(QWidget):
         self._axis_homed_indicators: list[QLabel]         = []
         self._axis_homed_labels:     list[QLabel]         = []
         self._axis_increments:       list[QDoubleSpinBox] = []
-        self._axis_speed_sliders:    list[QSlider]        = []
+        self._axis_speed_sliders:    list[QSpinBox]       = []
 
         self._build_ui()
 
@@ -241,12 +241,10 @@ class EndEffectorPanel(QWidget):
 
         homed_dot = create_status_indicator(COLOR_STATUS_DISCONNECTED, 7)
         self._axis_homed_indicators.append(homed_dot)
-        readout.addWidget(homed_dot)
 
         homed_lbl = QLabel("Not homed")
         homed_lbl.setStyleSheet(f"color: {_DIM}; font-size: 11px;")
         self._axis_homed_labels.append(homed_lbl)
-        readout.addWidget(homed_lbl)
 
         readout.addStretch()
 
@@ -271,31 +269,46 @@ class EndEffectorPanel(QWidget):
         step.setSingleStep(0.1 if axis == 1 else 1.0)
         step.setDecimals(2 if axis == 1 else 1)
         step.setSuffix(f" {unit}")
-        step.setFixedWidth(86)
+        step.setVisible(False)
         self._axis_increments.append(step)
-        controls.addWidget(step)
+        controls.addWidget(self._arrow_control(
+            increase=lambda: step.setValue(step.value() + step.singleStep()),
+            decrease=lambda: step.setValue(step.value() - step.singleStep()),
+            tooltip="Adjust step size",
+        ))
 
-        controls.addSpacing(10)
+        step_value = QLabel(f"{default_step:g} {unit}")
+        step_value.setObjectName("controlValue")
+        step_value.setFixedWidth(54)
+        step.valueChanged.connect(
+            lambda value, label=step_value, u=unit: label.setText(f"{value:g} {u}")
+        )
+        controls.addWidget(step_value)
+        controls.addSpacing(8)
 
         speed_label = QLabel("Speed")
         speed_label.setStyleSheet(f"color: {_DIM}; font-size: 13px;")
         controls.addWidget(speed_label)
 
-        slider = QSlider(Qt.Horizontal)
-        slider.setRange(1, 90)
-        slider.setValue(default_speed)
-        slider.setFixedWidth(130)
-        self._axis_speed_sliders.append(slider)
-        controls.addWidget(slider)
+        speed = QSpinBox()
+        speed.setRange(1, 90)
+        speed.setValue(default_speed)
+        speed.setSingleStep(1)
+        speed.setSuffix(f" {unit}/s")
+        speed.setVisible(False)
+        speed.setToolTip("Adjust speed with the up and down arrows")
+        self._axis_speed_sliders.append(speed)
+        controls.addWidget(self._arrow_control(
+            increase=lambda: speed.setValue(speed.value() + speed.singleStep()),
+            decrease=lambda: speed.setValue(speed.value() - speed.singleStep()),
+            tooltip="Adjust speed",
+        ))
 
-        speed_value = QLabel(f"{default_speed} {unit}/s")
+        speed_value = QLabel(f"{default_speed:g} {unit}/s")
+        speed_value.setObjectName("controlValue")
         speed_value.setFixedWidth(58)
-        speed_value.setStyleSheet(
-            "font-family: 'Consolas','Courier New',monospace; font-size: 11px;"
-            f" color: {_DIM};"
-        )
-        slider.valueChanged.connect(
-            lambda v, lbl=speed_value, u=unit: lbl.setText(f"{v} {u}/s")
+        speed.valueChanged.connect(
+            lambda value, label=speed_value, u=unit: label.setText(f"{value:g} {u}/s")
         )
         controls.addWidget(speed_value)
 
@@ -317,6 +330,36 @@ class EndEffectorPanel(QWidget):
 
         layout.addLayout(controls)
         return group
+
+    @staticmethod
+    def _arrow_control(
+        increase,
+        decrease,
+        tooltip: str,
+    ) -> QWidget:
+        """Create a compact, explicit up/down increment control."""
+        arrows = QVBoxLayout()
+        arrows.setContentsMargins(0, 0, 0, 0)
+        arrows.setSpacing(1)
+
+        up = QPushButton("▲")
+        up.setObjectName("valueArrow")
+        up.setFixedSize(24, 15)
+        up.setToolTip(f"{tooltip}: increase")
+        up.clicked.connect(increase)
+        arrows.addWidget(up)
+
+        down = QPushButton("▼")
+        down.setObjectName("valueArrow")
+        down.setFixedSize(24, 15)
+        down.setToolTip(f"{tooltip}: decrease")
+        down.clicked.connect(decrease)
+        arrows.addWidget(down)
+
+        container = QWidget()
+        container.setLayout(arrows)
+        container.setFixedSize(24, 31)
+        return container
 
     # ==================================================================
     # Keyboard teleoperation handlers

@@ -36,7 +36,7 @@
 | **Two-axis needle control** | `W`/`S` insertion and retraction, `A`/`D` clockwise / counter-clockwise rotation, arrow keys as aliases |
 | **Live position readout** | Large per-axis values driven by the device's own step counter — no gyro or encoder required |
 | **Repeatable jogs** | Each press is a relative `MOVE_REL`, so ten presses are ten steps instead of one step repeated |
-| **Speed control** | Per-axis 1–90 °/s slider, presets `1`–`4` (2 / 10 / 25 / 60 °/s), fine tuning with `+` / `−` |
+| **Speed control** | Per-axis 1–90 unit/s arrow controls, presets `1`–`4` (2 / 10 / 25 / 60), fine tuning with `+` / `−` |
 | **Motor + homing** | `M` toggles the stepper drivers, `H` zeroes both axes |
 | **Audit log** | Every command, acknowledgement, rejection and safety event with millisecond timestamps |
 | **Open-loop by design** | The firmware counts commanded steps; the PC mirrors that estimate, so no feedback sensor is needed |
@@ -83,7 +83,7 @@ proj-DP/
 │   ├── main_window.py             header, layout, hotkeys, log, master stop
 │   ├── end_effector_panel.py      axis readouts, step/speed, connect, motors
 │   ├── vision_panel.py            feed, camera controls, detection metrics
-│   └── styles.py                  flat dark theme + status dots
+│   └── styles.py                  light instrument theme + status dots
 │
 ├── firmware/esp32_controller/     stepper firmware + wiring guide
 ├── models/                        model drop-in guide
@@ -93,20 +93,27 @@ proj-DP/
 
 ### Window layout
 
+The workstation is designed for a half-screen beside the camera view. It defaults
+to `640 × 860` and keeps a minimum size of `520 × 640`. The light instrument-style
+layout stacks connection, driver, axis, and event-log sections vertically.
+
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
-│ NEEDLE MOTION CONTROL  [SIM]   ● End-effector online   ● Motors on  [STOP] │
+│ Needle Motion Control  [SIM]   ● End-effector online   ● Motors on [ALL STOP]│
 ├───────────────────────────────────────────────────────────────────────────┤
-│ END-EFFECTOR                                                              │
-│  ● Online   [COM3 ▾] [Scan] [Connect]   ● Motors on   [Enable] [Home]     │
+│ End-effector                                                               │
+│  Serial link  ● Online  [COM3 ▾] [Scan ports] [Connect]                    │
+│  Driver state ● Motors on [Enable motors] [Home]                           │
 │                                                                               │
-│ AXIS 1 · INSERTION                                                            │
-│  +12.00 mm  ● Homed    −180 mm … +180 mm  Step 1.00 mm  Speed ▬▬●──  20 mm/s [−][+] │
+│ Axis 1 - Needle insertion                                                     │
+│  +12.00 mm                 Travel: -180 to 180 mm                            │
+│  Step ▲▼ 1.00 mm   Speed ▲▼ 20 mm/s                                  [←][→] │
 │                                                                               │
-│ AXIS 2 · ROTATION                                                             │
-│  −90.00 °   ● Homed    −360° … +360°     Step 15.0 °   Speed ▬▬●──  25 °/s  [−][+] │
+│ Axis 2 - Needle rotation                                                       │
+│  −90.00 °                  Travel: -360 to 360 °                             │
+│  Step ▲▼ 15.0 °    Speed ▲▼ 25 °/s                                  [←][→] │
 ├───────────────────────────────────────────────────────────────────────────┤
-│ SYSTEM LOG — EVENT & SAFETY AUDIT                                         │
+│ Event log                                                                  │
 │ [19:08:25.913] [ESP32  ] Move REL: axis 1 delta=+1.00 ° (speed=20.0 °/s)  │
 │ [19:08:25.941] [ESP32  ] Command #12 rejected: Motors disabled  Press [M] │
 └───────────────────────────────────────────────────────────────────────────┘
@@ -130,7 +137,7 @@ enables its drivers. Press:
 | `S` / `↓` | Retract (axis 1 −) |
 | `A` / `←` | Rotate CCW (axis 2 −) |
 | `D` / `→` | Rotate CW (axis 2 +) |
-| `1` `2` `3` `4` | Speed presets: 2 / 10 / 25 / 60 °/s |
+| `1` `2` `3` `4` | Speed presets: 2 / 10 / 25 / 60 |
 | `+` / `−` | Speed ±5 °/s |
 | `M` | Enable / disable drivers |
 | `H` | Home both axes |

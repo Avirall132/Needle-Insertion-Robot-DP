@@ -115,6 +115,11 @@ QLabel[objectName="statusDot"] {
     padding: 0;
 }
 
+QLabel[objectName="controlValue"] {
+    font-family: "Consolas", "Courier New", monospace;
+    color: %(text)s;
+}
+
 QFrame#headerBar {
     background-color: %(header)s;
     border: none;
@@ -183,6 +188,25 @@ QPushButton[objectName="jogButton"]:hover {
     border-color: %(accent)s;
 }
 
+QPushButton[objectName="valueArrow"] {
+    background-color: %(btn)s;
+    color: %(text)s;
+    border: 1px solid %(border)s;
+    border-radius: 1px;
+    padding: 0;
+    min-height: 0;
+    font-size: 8px;
+}
+
+QPushButton[objectName="valueArrow"]:hover {
+    background-color: %(btn_hover)s;
+    color: %(accent)s;
+}
+
+QPushButton[objectName="valueArrow"]:pressed {
+    background-color: %(btn_pressed)s;
+}
+
 /* Group boxes: a rule and a label, nothing else -------------------------- */
 QGroupBox {
     background-color: %(panel)s;
@@ -214,6 +238,10 @@ QDoubleSpinBox, QSpinBox, QComboBox, QLineEdit {
     padding: 4px 7px;
     min-height: 26px;
     selection-background-color: %(accent)s;
+}
+
+QDoubleSpinBox, QSpinBox {
+    padding: 0;
 }
 
 QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus, QLineEdit:focus {
