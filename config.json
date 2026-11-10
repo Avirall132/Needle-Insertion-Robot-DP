@@ -1,0 +1,28 @@
+{
+    "robot": {
+        "ip": null,
+        "enabled": false,
+        "max_velocity": null,
+        "max_acceleration": null
+    },
+    "esp32": {
+        "serial_port": null,
+        "baud_rate": 115200,
+        "enabled": false
+    },
+    "camera": {
+        "index": 0,
+        "width": 640,
+        "height": 480,
+        "fps": 30
+    },
+    "vision": {
+        "model_path": null,
+        "confidence_threshold": 0.5,
+        "enabled": false
+    },
+    "application": {
+        "simulation_mode": true,
+        "log_level": "INFO"
+    }
+}
