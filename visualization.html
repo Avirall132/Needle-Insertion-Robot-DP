@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ultrasound-Guided Needle Insertion Mechanism — RCM Kinematic Simulation</title>
+  <style>
+    /* -------------------------------------------------------------
+       DESIGN SYSTEM: Dark Graphite Industrial Robotics Workstation
+       ------------------------------------------------------------- */
+    :root {
+      --bg-base: #0a0b0d;
+      --bg-panel: #111317;
+      --bg-card: #161920;
+      --bg-input: #1a1e27;
+      --border-dark: #222733;
+      --border-light: #2e3546;
+      --border-accent: #3a455c;
+
+      --text-primary: #e6ebf5;
+      --text-muted: #8c96a8;
+      --text-dim: #5c667a;
+
+      --cyan-bright: #38bdf8;
+      --cyan-glow: rgba(56, 189, 248, 0.25);
+      --cyan-dim: #0284c7;
+
+      --green-status: #22c55e;
+      --green-glow: rgba(34, 197, 94, 0.25);
+
+      --amber-warn: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.25);
+
+      --red-alert: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.25);
+
+      --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "Consolas", "Roboto Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      line-height: 1.4;
+    }
+
+    /* -------------------------------------------------------------
+       TOP CONTROL & AUDIT BAR
+       ------------------------------------------------------------- */
+    header {
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border-dark);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid var(--border-accent);
+      padding: 5px 9px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cyan-bright);
+      letter-spacing: 0.5px;
+    }
+
+    .title-area h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title-area p {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .rcm-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--cyan-bright);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .disclaimer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: var(--amber-warn);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-light);
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--green-status);
+      box-shadow: 0 0 8px var(--green-glow);
+    }
+
+    .status-dot.moving {
+      background-color: var(--cyan-bright);
+      box-shadow: 0 0 8px var(--cyan-glow);
+      animation: pulse 1s infinite alternate;
+    }
+
+    .status-dot.limit {
+      background-color: var(--amber-warn);
+      box-shadow: 0 0 8px var(--amber-glow);
+    }
+
+    @keyframes pulse {
+      from { opacity: 0.4; }
+      to { opacity: 1; }
+    }
+
+    .btn {
+      cursor: pointer;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 4px;
+      border: 1px solid var(--border-light);
+      background-color: var(--bg-card);
+      color: var(--text-primary);
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+
+    .btn:hover {
+      background-color: #1f2430;
+      border-color: var(--border-accent);
+      color: #fff;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-reset {
+      background-color: #2d1618;
+      border-color: #5c2024;
+      color: #fca5a5;
+    }
+
+    .btn-reset:hover {
+      background-color: #3f1d21;
+      border-color: #83272d;
+      color: #fee2e2;
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-group input {
+      cursor: pointer;
+      accent-color: var(--cyan-bright);
+    }
+
+    /* -------------------------------------------------------------
+       MAIN WORKSTATION LAYOUT
+       ------------------------------------------------------------- */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 430px 1fr;
+      gap: 16px;
+      padding: 16px;
+      height: calc(100vh - 65px);
+      min-height: 700px;
+    }
+
+    @media (max-width: 1080px) {
+      main {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+
+    /* -------------------------------------------------------------
+       LEFT PANEL: TELEMETRY & CONTROLS
+       ------------------------------------------------------------- */
+    .left-panel {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-dark);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 14px;
+      overflow-y: auto;
+    }
+
+    .control-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 5px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-dark);
+      padding-bottom: 8px;
+    }
+
+    .card-header .title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dir-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background-color: #1e2430;
+      color: var(--text-dim);
+      border: 1px solid var(--border-dark);
+      letter-spacing: 0.5px;
+      transition: all 0.2s ease;
+    }
+
+    .dir-badge.active {
+      color: var(--cyan-bright);
+      border-color: var(--cyan-dim);
+      background-color: rgba(56, 189, 248, 0.1);
+    }
+
+    .dir-badge.warn {
+      color: var(--amber-warn);
+      border-color: var(--amber-warn);
+      background-color: rgba(245, 158, 11, 0.1);
+    }
+
+    /* Digital Readout Display */
+    .digital-readout-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .digital-readout {
+      font-family: var(--font-mono);
+      font-size: 34px;
+      font-weight: 700;
+      color: var(--cyan-bright);
+      line-height: 1;
+      text-shadow: 0 0 16px rgba(56, 189, 248, 0.3);
+      letter-spacing: -0.5px;
+    }
+
+    .digital-readout .unit {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    .limit-tags {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: right;
+    }
+
+    /* Bipolar Progress Meter */
+    .bipolar-track-container {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .bipolar-track {
+      height: 8px;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-dark);
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bipolar-center-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background-color: var(--text-dim);
+      z-index: 2;
+    }
+
+    .bipolar-fill {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, var(--cyan-dim), var(--cyan-bright));
+      transition: width 0.08s ease, left 0.08s ease;
+    }
+
+    .bipolar-fill.negative {
+      background: linear-gradient(270deg, var(--cyan-dim), #38bdf8);
+    }
+
+    .track-labels {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-dim);
+    }
+
+    /* Slider & Numeric Input Controls */
+    .slider-input-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .range-slider {
+      flex: 1;
+      accent-color: var(--cyan-bright);
+      cursor: pointer;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--bg-input);
+    }
+
+    .num-input {
+      width: 82px;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-light);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 5px 8px;
+      text-align: right;
+    }
+
+    .num-input:focus {
+      outline: none;
+      border-color: var(--cyan-bright);
+      box-shadow: 0 0 6px var(--cyan-glow);
+    }
+
+    /* Stepping Buttons Grid */
+    .step-buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .step-btn {
+      background-color: #171b24;
+      border: 1px solid var(--border-light);
+      color: var(--text-primary);
+      padding: 6px 4px;
+      border-radius: 3px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.12s ease;
+    }
+
+    .step-btn:hover {
+      background-color: #222938;
+      border-color: var(--cyan-dim);
+      color: var(--cyan-bright);
+    }
+
+    .step-btn:active {
+      transform: translateY(1px);
+    }
+
+    .step-btn.zero-btn {
+      background-color: #1c212d;
+      color: var(--text-muted);
+    }
+
+    .step-btn.zero-btn:hover {
+      color: #fff;
+      border-color: var(--text-muted);
+    }
+
+    /* Circular Angle Arc Gauge in Rotation card */
+    .dial-display-container {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .dial-svg-box {
+      width: 58px;
+      height: 58px;
+      flex-shrink: 0;
+    }
+
+    /* Target Depth Config Card */
+    .depth-config-card {
+      background-color: #12161f;
+      border: 1px dashed var(--border-accent);
+      border-radius: 5px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .depth-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    /* Comprehensive System Status Block */
+    .status-matrix-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 5px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .matrix-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-dark);
+      padding-bottom: 6px;
+    }
+
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+      font-size: 11px;
+    }
+
+    .matrix-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
+    }
+
+    .matrix-item .label {
+      color: var(--text-dim);
+      font-size: 10.5px;
+    }
+
+    .matrix-item .val {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .matrix-item .val.cyan { color: var(--cyan-bright); }
+    .matrix-item .val.green { color: var(--green-status); }
+    .matrix-item .val.amber { color: var(--amber-warn); }
+
+    /* Live Sparkline History Canvas */
+    .history-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 5px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .history-legend {
+      display: flex;
+      gap: 10px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+    }
+
+    .legend-tag {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-color-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    #historyCanvas {
+      width: 100%;
+      height: 70px;
+      background-color: #0b0d12;
+      border: 1px solid var(--border-dark);
+      border-radius: 3px;
+      display: block;
+    }
+
+    /* Keyboard Shortcuts Reference */
+    .keyboard-hint {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      padding-top: 4px;
+      border-top: 1px solid var(--border-dark);
+    }
+
+    .kbd {
+      background-color: #1c212d;
+      border: 1px solid var(--border-accent);
+      color: var(--text-muted);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+
+    /* -------------------------------------------------------------
+       RIGHT PANEL: LARGE MECHANISM SIMULATION WORKSPACE
+       ------------------------------------------------------------- */
+    .right-panel {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-dark);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-toolbar {
+      background-color: #0d0f13;
+      border-bottom: 1px solid var(--border-dark);
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .coord-display {
+      color: var(--text-primary);
+    }
+
+    .coord-display span {
+      color: var(--cyan-bright);
+      font-weight: 700;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .view-chip {
+      background-color: #171b24;
+      border: 1px solid var(--border-light);
+      padding: 2px 8px;
+      border-radius: 3px;
+      color: var(--text-dim);
+    }
+
+    .svg-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      min-height: 560px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #0b0d10;
+      position: relative;
+      user-select: none;
+    }
+
+    #mechSvg {
+      width: 100%;
+      height: 100%;
+      max-height: 100%;
+      display: block;
+    }
+
+    /* SVG Component Tooltip / Info Badge */
+    .svg-hud-overlay {
+      position: absolute;
+      bottom: 14px;
+      left: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .hud-box {
+      background-color: rgba(15, 23, 42, 0.88);
+      border: 1px solid var(--border-accent);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--text-muted);
+      backdrop-filter: blur(4px);
+    }
+
+    .hud-box strong {
+      color: var(--cyan-bright);
+    }
+
+    /* Target Crosshair Pulse */
+    @keyframes pulseTarget {
+      0% { r: 5; opacity: 1; stroke-width: 2; }
+      50% { r: 12; opacity: 0.3; stroke-width: 1; }
+      100% { r: 5; opacity: 1; stroke-width: 2; }
+    }
+
+    .target-pulse-circle {
+      animation: pulseTarget 1.8s infinite ease-in-out;
+    }
+
+    .reduced-motion * {
+      animation: none !important;
+      transition: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       TOP HEADER / AUDIT BAR
+       ============================================================ -->
+  <header>
+    <div class="brand-group">
+      <div class="brand-badge">RCM KINEMATICS</div>
+      <div class="title-area">
+        <h1>
+          Ultrasound-Guided Needle Insertion
+          <span style="font-size: 12px; font-weight: 500; color: var(--text-dim);">| Target-Constrained Arc Motion</span>
+        </h1>
+        <p>Remote Center of Motion (RCM) Architecture · Always Targeting Depth <em>d</em></p>
+      </div>
+      <div class="rcm-badge">
+        <span>🎯</span> TARGET-FOCUSED RCM PIVOT
+      </div>
+      <div class="disclaimer-badge">
+        <span>⚠</span> DEMO SPECIFICATION · SIMULATION
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="status-pill" id="globalStatusPill">
+        <div class="status-dot" id="globalStatusDot"></div>
+        <span id="globalStatusText">READY · AT ZERO</span>
+      </div>
+
+      <button class="btn btn-reset" id="btnResetAll" title="Smoothly restore both axes to 0.00 mm and 0.0° [R]">
+        <span>↺</span> RESET ALL (0,0)
+      </button>
+
+      <label class="toggle-group" title="Disable animations for immediate updates">
+        <input type="checkbox" id="chkReducedMotion">
+        <span>Reduced Motion</span>
+      </label>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       MAIN CONTENT: SPLIT CONSOLE
+       ============================================================ -->
+  <main>
+    <!-- LEFT PANEL: TELEMETRY & CONTROLS -->
+    <section class="left-panel" aria-label="Mechanism Telemetry and Controls">
+
+      <!-- SECTION 1: LINEAR POSITION (AXIS 1) -->
+      <div class="control-card">
+        <div class="card-header">
+          <span class="title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v20M17 5H7M17 19H7"/>
+            </svg>
+            AXIS 1 · LINEAR INSERTION DEPTH
+          </span>
+          <span class="dir-badge" id="linearDirBadge">NEUTRAL</span>
+        </div>
+
+        <div class="digital-readout-row">
+          <div>
+            <div class="digital-readout" id="linearDisplay">
+              +0.00<span class="unit">mm</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">
+              Advancement Along Trajectory Toward Depth <em>d</em>
+            </div>
+          </div>
+          <div class="limit-tags">
+            <div>MAX: +50.00 mm</div>
+            <div>MIN: -50.00 mm</div>
+          </div>
+        </div>
+
+        <!-- Bipolar Progress Track -->
+        <div class="bipolar-track-container">
+          <div class="bipolar-track">
+            <div class="bipolar-center-line"></div>
+            <div class="bipolar-fill" id="linearBipolarFill"></div>
+          </div>
+          <div class="track-labels">
+            <span>-50 mm (RETRACTED)</span>
+            <span style="color: var(--text-primary); font-weight: bold;">0 mm (REFERENCE)</span>
+            <span>+50 mm (INSERTED)</span>
+          </div>
+        </div>
+
+        <!-- Slider & Exact Numeric Input -->
+        <div class="slider-input-group">
+          <input type="range" class="range-slider" id="linearSlider"
+                 min="-50" max="50" step="0.1" value="0"
+                 aria-label="Linear insertion position in millimeters">
+          <input type="number" class="num-input" id="linearNumInput"
+                 min="-50" max="50" step="0.5" value="0.00"
+                 aria-label="Direct linear coordinate input">
+        </div>
+
+        <!-- Step Increment Presets -->
+        <div class="step-buttons-grid">
+          <button class="step-btn" id="btnLinearDownLarge" title="Retract -5 mm [S]">-5.0 mm</button>
+          <button class="step-btn" id="btnLinearDownSmall" title="Retract -1 mm">-1.0 mm</button>
+          <button class="step-btn" id="btnLinearUpSmall" title="Advance +1 mm">+1.0 mm</button>
+          <button class="step-btn" id="btnLinearUpLarge" title="Advance +5 mm [W]">+5.0 mm</button>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="step-btn zero-btn" id="btnLinearZero" style="flex: 1;">
+            RETURN TO 0.00 mm
+          </button>
+        </div>
+      </div>
+
+      <!-- SECTION 2: ROTATION POSITION (AXIS 2 - ARC GUIDE MOTION) -->
+      <div class="control-card">
+        <div class="card-header">
+          <span class="title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            AXIS 2 · ARC GUIDE ROTATION (RCM PIVOT)
+          </span>
+          <span class="dir-badge" id="rotationDirBadge">NEUTRAL</span>
+        </div>
+
+        <div class="dial-display-container">
+          <!-- Mini SVG Angle Gauge -->
+          <svg class="dial-svg-box" viewBox="0 0 60 60">
+            <circle cx="30" cy="30" r="24" fill="none" stroke="#1f2430" stroke-width="4"/>
+            <path id="dialArcPath" d="M 30 6 A 24 24 0 0 1 30 6" fill="none" stroke="var(--cyan-bright)" stroke-width="4"/>
+            <circle cx="30" cy="30" r="3" fill="var(--text-muted)"/>
+            <line id="dialNeedleLine" x1="30" y1="30" x2="30" y2="10" stroke="var(--cyan-bright)" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+
+          <div style="flex: 1;">
+            <div class="digital-readout" id="rotationDisplay">
+              +0.0<span class="unit">°</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">
+              Pivots along Arc Guide around Target Depth <em>d</em>
+            </div>
+          </div>
+
+          <div class="limit-tags">
+            <div>MAX: +25.0°</div>
+            <div>MIN: -25.0°</div>
+          </div>
+        </div>
+
+        <!-- Bipolar Progress Track for Rotation -->
+        <div class="bipolar-track-container">
+          <div class="bipolar-track">
+            <div class="bipolar-center-line"></div>
+            <div class="bipolar-fill" id="rotationBipolarFill"></div>
+          </div>
+          <div class="track-labels">
+            <span>-25° (PITCH UP / SHALLOW)</span>
+            <span style="color: var(--text-primary); font-weight: bold;">0° (NOMINAL 24°)</span>
+            <span>+25° (PITCH DOWN / STEEP)</span>
+          </div>
+        </div>
+
+        <!-- Slider & Direct Numeric Input -->
+        <div class="slider-input-group">
+          <input type="range" class="range-slider" id="rotationSlider"
+                 min="-25" max="25" step="0.5" value="0"
+                 aria-label="Rotation angle in degrees along arc">
+          <input type="number" class="num-input" id="rotationNumInput"
+                 min="-25" max="25" step="1.0" value="0.0"
+                 aria-label="Direct rotation coordinate input">
+        </div>
+
+        <!-- Angle Step Presets -->
+        <div class="step-buttons-grid">
+          <button class="step-btn" id="btnRotDownLarge" title="Pitch Up -5° [A]">-5.0°</button>
+          <button class="step-btn" id="btnRotDownSmall" title="Pitch Up -1°">-1.0°</button>
+          <button class="step-btn" id="btnRotUpSmall" title="Pitch Down +1°">+1.0°</button>
+          <button class="step-btn" id="btnRotUpLarge" title="Pitch Down +5° [D]">+5.0°</button>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="step-btn zero-btn" id="btnRotationZero" style="flex: 1;">
+            ROTATE TO 0.0°
+          </button>
+        </div>
+      </div>
+
+      <!-- SECTION 3: TARGET DEPTH d CONFIGURATION -->
+      <div class="depth-config-card">
+        <div class="depth-row">
+          <span style="font-weight: 700; color: var(--cyan-bright); font-family: var(--font-mono); font-size: 11px;">
+            🎯 TARGET DEPTH d UNDER PROBE
+          </span>
+          <span style="font-family: var(--font-mono); font-weight: 700; color: #fff;" id="depthValDisplay">50.0 mm</span>
+        </div>
+        <div class="slider-input-group">
+          <input type="range" class="range-slider" id="depthSlider" min="20" max="80" step="1" value="50">
+        </div>
+        <div style="font-size: 10px; color: var(--text-dim);">
+          Center of curvature for the arc guide. Needle trajectory strictly pivots around this focal point!
+        </div>
+      </div>
+
+      <!-- SECTION 4: SYSTEM AUDIT & STATUS MATRIX -->
+      <div class="status-matrix-card">
+        <div class="matrix-title">
+          <span>Kinematic Telemetry &amp; RCM Matrix</span>
+          <span style="color: var(--cyan-bright);">TRUE RCM ALIGNED</span>
+        </div>
+        <div class="matrix-grid">
+          <div class="matrix-item">
+            <span class="label">Linear Insertion:</span>
+            <span class="val cyan" id="matrixLinearVal">0.00 mm</span>
+          </div>
+          <div class="matrix-item">
+            <span class="label">Arc Pitch Angle:</span>
+            <span class="val cyan" id="matrixRotVal">0.0°</span>
+          </div>
+          <div class="matrix-item">
+            <span class="label">Target Depth d:</span>
+            <span class="val cyan" id="matrixDepthVal">50.0 mm</span>
+          </div>
+          <div class="matrix-item">
+            <span class="label">Trajectory Alignment:</span>
+            <span class="val green" id="matrixTargetStatus">Target Locked 🎯</span>
+          </div>
+          <div class="matrix-item">
+            <span class="label">Needle State:</span>
+            <span class="val" id="matrixNeedleState">At Reference</span>
+          </div>
+          <div class="matrix-item">
+            <span class="label">Kinematic State:</span>
+            <span class="val green" id="matrixMotionState">Ready / Idle</span>
+          </div>
+          <div class="matrix-item">
+            <span class="label">Linear Travel %:</span>
+            <span class="val" id="matrixLinearPct">0.0%</span>
+          </div>
+          <div class="matrix-item">
+            <span class="label">Arc Travel %:</span>
+            <span class="val" id="matrixRotPct">0.0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 5: REAL-TIME COORDINATE HISTORY GRAPH -->
+      <div class="history-card">
+        <div class="history-header">
+          <span>Real-time Kinematic History</span>
+          <div class="history-legend">
+            <div class="legend-tag">
+              <span class="legend-color-dot" style="background-color: var(--cyan-bright);"></span>
+              <span>Linear (mm)</span>
+            </div>
+            <div class="legend-tag">
+              <span class="legend-color-dot" style="background-color: var(--amber-warn);"></span>
+              <span>Angle (°)</span>
+            </div>
+          </div>
+        </div>
+        <canvas id="historyCanvas" width="380" height="70"></canvas>
+      </div>
+
+      <!-- KEYBOARD SHORTCUTS HINT -->
+      <div class="keyboard-hint">
+        <span><span class="kbd">W</span> / <span class="kbd">S</span> Advance/Retract</span>
+        <span><span class="kbd">A</span> / <span class="kbd">D</span> Tilt Along Arc</span>
+        <span><span class="kbd">R</span> Reset All</span>
+        <span><span class="kbd">Space</span> Halt</span>
+      </div>
+
+    </section>
+
+    <!-- RIGHT PANEL: ENGINEERING SIMULATION WORKSPACE -->
+    <section class="right-panel" aria-label="Mechanism Visual Workspace">
+      <div class="canvas-toolbar">
+        <div class="toolbar-left">
+          <div class="coord-display">X_LIN: <span id="tbLinCoord">+0.00 mm</span></div>
+          <div class="coord-display">THETA_ARC: <span id="tbRotCoord">+0.0°</span></div>
+          <div class="coord-display">RCM TARGET: <span id="tbTargetDepth">d = 50.0 mm</span></div>
+        </div>
+        <div class="toolbar-right">
+          <span class="view-chip">VIEW: LATERAL ORTHOGRAPHIC (CAD ALIGNED)</span>
+          <span class="view-chip">KINEMATICS: RCM CONSTRAINED</span>
+        </div>
+      </div>
+
+      <div class="svg-container">
+        <!-- The Main High-Fidelity SVG Graphic -->
+        <svg id="mechSvg" viewBox="0 0 960 640" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Engineering Background Grid -->
+            <pattern id="gridPatternSmall" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255, 255, 255, 0.035)" stroke-width="1"/>
+            </pattern>
+            <pattern id="gridPatternLarge" width="100" height="100" patternUnits="userSpaceOnUse">
+              <rect width="100" height="100" fill="url(#gridPatternSmall)"/>
+              <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255, 255, 255, 0.08)" stroke-width="1.2"/>
+            </pattern>
+
+            <!-- Mechanical Shading Gradients -->
+            <linearGradient id="gradMetalDark" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#3b4252"/>
+              <stop offset="100%" stop-color="#242933"/>
+            </linearGradient>
+
+            <linearGradient id="gradMetalMid" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#4c566a"/>
+              <stop offset="50%" stop-color="#3b4252"/>
+              <stop offset="100%" stop-color="#2e3440"/>
+            </linearGradient>
+
+            <linearGradient id="gradBoomPink" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#c9b2a6"/>
+              <stop offset="100%" stop-color="#9d867a"/>
+            </linearGradient>
+
+            <linearGradient id="gradRack" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#70798c"/>
+              <stop offset="50%" stop-color="#555d6e"/>
+              <stop offset="100%" stop-color="#3d4452"/>
+            </linearGradient>
+
+            <!-- Ultrasound Beam Gradient -->
+            <linearGradient id="gradUsBeam" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="rgba(56, 189, 248, 0.25)"/>
+              <stop offset="50%" stop-color="rgba(56, 189, 248, 0.12)"/>
+              <stop offset="100%" stop-color="rgba(56, 189, 248, 0.02)"/>
+            </linearGradient>
+
+            <!-- Glow Filters -->
+            <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+          </defs>
+
+          <!-- 1. Grid Background -->
+          <rect width="960" height="640" fill="#090b0e"/>
+          <rect width="960" height="640" fill="url(#gridPatternLarge)"/>
+
+          <!-- ============================================================
+               ULTRASOUND ACOUSTIC IMAGING BEAM / CONE
+               Originates at probe face (Y=492) and expands downward
+               ============================================================ -->
+          <g id="ultrasoundBeamGroup">
+            <!-- Semi-transparent Acoustic Fan -->
+            <polygon points="195,492 285,492 340,630 140,630"
+                     fill="url(#gradUsBeam)" stroke="rgba(56, 189, 248, 0.3)" stroke-width="1" stroke-dasharray="4,4"/>
+            <!-- Acoustic Scan Lines -->
+            <line x1="240" y1="492" x2="240" y2="630" stroke="rgba(56, 189, 248, 0.3)" stroke-width="1.2" stroke-dasharray="3,3"/>
+            <line x1="217" y1="492" x2="190" y2="630" stroke="rgba(56, 189, 248, 0.1)" stroke-width="1"/>
+            <line x1="262" y1="492" x2="290" y2="630" stroke="rgba(56, 189, 248, 0.1)" stroke-width="1"/>
+            <text x="240" y="620" fill="rgba(56, 189, 248, 0.5)" font-family="Consolas, monospace" font-size="9" text-anchor="middle">
+              ULTRASOUND ACOUSTIC IMAGING PLANE
+            </text>
+          </g>
+
+          <!-- 2. Technical Datum Lines & Reference Axes -->
+          <g id="datumGroup">
+            <!-- Probe Footprint Baseline -->
+            <line x1="60" y1="492" x2="900" y2="492" stroke="#252a36" stroke-width="1.5" stroke-dasharray="6,4"/>
+            <text x="70" y="484" fill="#4b5568" font-family="Consolas, monospace" font-size="10">PROBE FACE // SKIN SURFACE (DEPTH = 0)</text>
+
+            <!-- Coordinate Axes Crosshair through ultrasound central axis -->
+            <line x1="240" y1="40" x2="240" y2="630" stroke="rgba(56, 189, 248, 0.15)" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="246" y="70" fill="rgba(56, 189, 248, 0.4)" font-family="Consolas, monospace" font-size="10">ULTRASOUND CENTRAL BEAM AXIS</text>
+
+            <!-- Target Depth Level Line -->
+            <line id="depthDatumLine" x1="100" y1="542" x2="880" y2="542"
+                  stroke="rgba(245, 158, 11, 0.25)" stroke-width="1" stroke-dasharray="4,4"/>
+            <text id="depthDatumText" x="105" y="536" fill="rgba(245, 158, 11, 0.5)" font-family="Consolas, monospace" font-size="9">
+              TARGET DEPTH d = 50.0 mm
+            </text>
+          </g>
+
+          <!-- ============================================================
+               STATIC COMPONENT A: LEFT FIXTURE (ULTRASOUND PROBE & MOUNT)
+               ============================================================ -->
+          <g id="leftAssembly" transform="translate(100, 40)">
+            <!-- Top Stepper / Enclosure -->
+            <rect x="105" y="0" width="75" height="95" rx="5" fill="url(#gradMetalDark)" stroke="#4c566a" stroke-width="1.5"/>
+            <!-- Motor Connector Top -->
+            <rect x="125" y="-12" width="35" height="12" rx="2" fill="#2e3440" stroke="#4c566a" stroke-width="1"/>
+            <circle cx="155" cy="-6" r="3" fill="#38bdf8"/>
+            <text x="142" y="48" fill="#94a3b8" font-family="Consolas, monospace" font-size="9" text-anchor="middle">BASE UNIT</text>
+
+            <!-- Guide Bracket Body -->
+            <rect x="0" y="140" width="220" height="90" rx="6" fill="url(#gradMetalDark)" stroke="#4c566a" stroke-width="1.5"/>
+            <!-- Sensor window -->
+            <rect x="18" y="158" width="48" height="52" fill="#181b22" stroke="#333b4d" stroke-width="1"/>
+            <line x1="42" y1="158" x2="42" y2="210" stroke="#f59e0b" stroke-width="1.5"/>
+
+            <!-- Center Vertical Guide Post -->
+            <rect x="120" y="75" width="45" height="95" rx="3" fill="#242933" stroke="#4c566a" stroke-width="1"/>
+            <line x1="142" y1="75" x2="142" y2="170" stroke="#64748b" stroke-width="2" stroke-dasharray="4,3"/>
+
+            <!-- Lower Ultrasound Probe Clamp & Transducer Head -->
+            <g id="ultrasoundProbe" transform="translate(60, 200)">
+              <!-- Probe neck -->
+              <path d="M 62,30 L 62,110 C 62,130 35,160 25,190 C 20,205 25,230 45,240 L 115,240 C 135,230 140,205 135,190 C 125,160 98,130 98,110 L 98,30 Z"
+                    fill="url(#gradMetalMid)" stroke="#4c566a" stroke-width="1.5"/>
+              <!-- Probe center dividing seam -->
+              <line x1="80" y1="30" x2="80" y2="240" stroke="#242933" stroke-width="1.5"/>
+              <!-- Acoustic Face / Lens at bottom (Global Y = 492) -->
+              <rect x="35" y="240" width="90" height="12" rx="4" fill="#1e2430" stroke="#38bdf8" stroke-width="1.5"/>
+              <!-- Mounting Eyelets -->
+              <circle cx="28" cy="180" r="4" fill="#242933" stroke="#64748b" stroke-width="1.5"/>
+              <circle cx="20" cy="218" r="4" fill="#242933" stroke="#64748b" stroke-width="1.5"/>
+              <circle cx="132" cy="180" r="4" fill="#242933" stroke="#64748b" stroke-width="1.5"/>
+              <circle cx="140" cy="218" r="4" fill="#242933" stroke="#64748b" stroke-width="1.5"/>
+              <text x="80" y="165" fill="#94a3b8" font-family="Consolas, monospace" font-size="9" text-anchor="middle">US PROBE</text>
+            </g>
+
+            <text x="110" y="215" fill="#64748b" font-family="Consolas, monospace" font-size="9" text-anchor="middle">
+              ULTRASOUND TRANSDUCER FIXTURE
+            </text>
+          </g>
+
+          <!-- ============================================================
+               STATIC COMPONENT B: CURVED BRIDGE / LINKAGE BOOM
+               Connects probe fixture to the arc guide track
+               ============================================================ -->
+          <g id="boomBridge">
+            <path d="M 320,215 C 375,218 435,235 480,270 L 468,295 C 425,260 370,240 320,238 Z"
+                  fill="url(#gradBoomPink)" stroke="#55443d" stroke-width="1.5"/>
+            <circle cx="330" cy="226" r="4" fill="#242933" stroke="#fff" stroke-width="1"/>
+            <circle cx="450" cy="265" r="4" fill="#242933" stroke="#fff" stroke-width="1"/>
+            <text x="395" y="235" fill="#c9b2a6" font-family="Consolas, monospace" font-size="8.5" text-anchor="middle">
+              RIGID CONNECTING BOOM
+            </text>
+          </g>
+
+          <!-- ============================================================
+               STATIC COMPONENT C: TRUE RCM CIRCULAR ARC GUIDE TRACK
+               Curved concentric arc with radius ~320 px centered at target (240, 542)
+               ============================================================ -->
+          <g id="arcGuideTrack">
+            <!-- Curved track body: Concentric circular arc centered at (240, 542) -->
+            <!-- Inner radius R=295, Outer radius R=345, Angles from ~8 deg to ~45 deg -->
+            <path d="M 535,490 A 295 295 0 0 0 440,320 L 474,282 A 345 345 0 0 1 585,481 Z"
+                  fill="#2e3440" stroke="#4c566a" stroke-width="1.5"/>
+
+            <!-- Toothed inner curved rack -->
+            <path d="M 545,486 A 305 305 0 0 0 448,326"
+                  fill="none" stroke="#64748b" stroke-width="3" stroke-dasharray="3,3"/>
+
+            <!-- End stop tabs -->
+            <rect x="428" y="275" width="24" height="18" rx="2" fill="#4c566a"/>
+            <rect x="565" y="475" width="28" height="18" rx="2" fill="#4c566a"/>
+
+            <text x="540" y="380" fill="#64748b" font-family="Consolas, monospace" font-size="8.5" transform="rotate(35, 540, 380)">
+              CIRCULAR ARC GUIDE [RADIUS R CENTERED AT TARGET d]
+            </text>
+          </g>
+
+          <!-- ============================================================
+               TARGET POINT AT DEPTH d (RCM FOCAL CENTER)
+               Located at (240, 542) under the ultrasound probe face
+               ============================================================ -->
+          <g id="targetFocalPointGroup">
+            <!-- Pulsing Target Circle -->
+            <circle id="targetFocalCircle" class="target-pulse-circle" cx="240" cy="542" r="5"
+                    fill="none" stroke="var(--cyan-bright)" stroke-width="2"/>
+            <circle id="targetCenterDot" cx="240" cy="542" r="3" fill="#ffffff"/>
+            <!-- Target Crosshair Lines -->
+            <line id="targetChH" x1="225" y1="542" x2="255" y2="542" stroke="var(--cyan-bright)" stroke-width="1.5"/>
+            <line id="targetChV" x1="240" y1="527" x2="240" y2="557" stroke="var(--cyan-bright)" stroke-width="1.5"/>
+
+            <text id="targetLabel" x="258" y="546" fill="var(--cyan-bright)" font-family="Consolas, monospace" font-size="9" font-weight="bold">
+              TARGET FOCUS (DEPTH d)
+            </text>
+          </g>
+
+          <!-- ============================================================
+               DYNAMIC COMPONENT: PITCHING TOOL ASSEMBLY (ROTATES AROUND TARGET)
+               Transform: rotate(rotationDeg, targetX, targetY)
+               THIS ENSURES THE NEEDLE ALWAYS POINTS AT THE TARGET AT DEPTH d!
+               ============================================================ -->
+          <g id="pitchingGroup" transform="rotate(0, 240, 542)">
+
+            <!-- Extended Trajectory Alignment Beam passing straight to target -->
+            <line id="trajectoryCenterline" x1="240" y1="542" x2="800" y2="293"
+                  stroke="rgba(56, 189, 248, 0.35)" stroke-width="1.2" stroke-dasharray="4,4"/>
+
+            <!-- Bearing Rollers riding along the curved arc guide -->
+            <!-- Roller 1 (Top) -->
+            <circle cx="480" cy="330" r="9" fill="#1f2430" stroke="#38bdf8" stroke-width="2"/>
+            <circle cx="480" cy="330" r="3" fill="#fff"/>
+            <!-- Roller 2 (Bottom) -->
+            <circle cx="530" cy="445" r="9" fill="#1f2430" stroke="#38bdf8" stroke-width="2"/>
+            <circle cx="530" cy="445" r="3" fill="#fff"/>
+
+            <!-- Main Tool Carriage Body (Glides on arc) -->
+            <path d="M 465,340 L 595,285 L 630,345 L 560,450 L 485,410 Z"
+                  fill="url(#gradMetalDark)" stroke="#4c566a" stroke-width="1.5"/>
+
+            <!-- Carriage Mounting Hardware Details -->
+            <circle cx="525" cy="340" r="4" fill="#181b22" stroke="#64748b" stroke-width="1"/>
+            <circle cx="575" cy="315" r="4" fill="#181b22" stroke="#64748b" stroke-width="1"/>
+            <circle cx="545" cy="390" r="4" fill="#181b22" stroke="#64748b" stroke-width="1"/>
+            <circle cx="590" cy="370" r="4" fill="#181b22" stroke="#64748b" stroke-width="1"/>
+
+            <!-- Pinion Motor Gearbox Mount on Carriage -->
+            <rect x="580" y="270" width="70" height="46" rx="4"
+                  fill="#1e2430" stroke="#38bdf8" stroke-width="1.2"
+                  transform="rotate(24, 615, 293)"/>
+
+            <!-- Rotating Pinion Gear -->
+            <g id="pinionGearGroup" transform="translate(615, 293)">
+              <circle cx="0" cy="0" r="14" fill="#4c566a" stroke="#ffffff" stroke-width="1.2"/>
+              <circle cx="0" cy="0" r="4" fill="#242933"/>
+              <line id="pinionSpoke1" x1="0" y1="-13" x2="0" y2="13" stroke="#38bdf8" stroke-width="1.5"/>
+              <line id="pinionSpoke2" x1="-13" y1="0" x2="13" y2="0" stroke="#38bdf8" stroke-width="1.5"/>
+            </g>
+
+            <!-- ============================================================
+                 TRANSLATING NEEDLE & RACK (AXIS 1)
+                 Slides along the trajectory ray pointing directly into target!
+                 Group established at 24° nominal angle from target (240, 542)
+                 ============================================================ -->
+            <g transform="translate(240, 542) rotate(-24)">
+              <!-- Local coordinate frame: X axis points straight back along trajectory!
+                   X = 0 is the TARGET FOCUS POINT!
+                   X > 0 is distance along trajectory away from target.
+                   X increases toward the rack.
+                   Sliding displacement: translate(linear_offset, 0)
+              -->
+              <g id="slidingRackGroup" transform="translate(0, 0)">
+                <!-- Linear Toothed Rack Bar -->
+                <!-- Spans from X=230 to X=550 -->
+                <rect x="230" y="-12" width="320" height="24" rx="4"
+                      fill="url(#gradRack)" stroke="#2b313d" stroke-width="1.5"/>
+
+                <!-- Rack Teeth along upper side (Y = -12) -->
+                <path d="M 240,-12 L 244,-17 L 248,-12 L 252,-17 L 256,-12 L 260,-17 L 264,-12 L 268,-17 L 272,-12 L 276,-17 L 280,-12 L 284,-17 L 288,-12 L 292,-17 L 296,-12 L 300,-17 L 304,-12 L 308,-17 L 312,-12 L 316,-17 L 320,-12 L 324,-17 L 328,-12 L 332,-17 L 336,-12 L 340,-17 L 344,-12 L 348,-17 L 352,-12 L 356,-17 L 360,-12 L 364,-17 L 368,-12 L 372,-17 L 376,-12 L 380,-17 L 384,-12 L 388,-17 L 392,-12 L 396,-17 L 400,-12 L 404,-17 L 408,-12 L 412,-17 L 416,-12 L 420,-17 L 424,-12 L 428,-17 L 432,-12 L 436,-17 L 440,-12 L 444,-17 L 448,-12 L 452,-17 L 456,-12 L 460,-17 L 464,-12 L 468,-17 L 472,-12 L 476,-17 L 480,-12 L 484,-17 L 488,-12 L 492,-17 L 496,-12 L 500,-17 L 504,-12 L 508,-17 L 512,-12 L 516,-17 L 520,-12 L 524,-17 L 528,-12 L 532,-17 L 536,-12 L 540,-17 L 544,-12"
+                      fill="none" stroke="#2b313d" stroke-width="1.5"/>
+
+                <!-- End Stop Tab -->
+                <path d="M 548,-12 L 558,-24 L 544,-24 L 542,-12 Z" fill="#3b4252" stroke="#2b313d" stroke-width="1.2"/>
+
+                <!-- Needle Carrier Plate (With 4 Alignment Holes) -->
+                <g id="needleCarrierPlate" transform="translate(130, -26)">
+                  <rect x="0" y="0" width="115" height="52" rx="6"
+                        fill="url(#gradMetalMid)" stroke="#2b313d" stroke-width="1.5"/>
+                  <!-- 4 Holes Matching CAD image -->
+                  <circle cx="60" cy="17" r="3.5" fill="#181b22" stroke="#64748b" stroke-width="1"/>
+                  <circle cx="80" cy="17" r="3.5" fill="#181b22" stroke="#64748b" stroke-width="1"/>
+                  <circle cx="60" cy="35" r="3.5" fill="#181b22" stroke="#64748b" stroke-width="1"/>
+                  <circle cx="80" cy="35" r="3.5" fill="#181b22" stroke="#64748b" stroke-width="1"/>
+
+                  <!-- Needle Hub Clamp -->
+                  <rect x="-18" y="18" width="22" height="16" rx="2"
+                        fill="#38bdf8" stroke="#0284c7" stroke-width="1.2"/>
+
+                  <!-- THE SURGICAL NEEDLE CANNULA -->
+                  <!-- Extends from Hub (X = -18) toward Target (X = 0) -->
+                  <!-- In reference state (0 mm), needle tip is at X = 70 (approx 29 mm before target) -->
+                  <line x1="-18" y1="26" x2="-60" y2="26"
+                        stroke="#38bdf8" stroke-width="2.4" filter="url(#glowCyan)"/>
+                  <line x1="-18" y1="26" x2="-60" y2="26"
+                        stroke="#ffffff" stroke-width="1"/>
+
+                  <!-- Needle Bevel Tip (Pointing at Target) -->
+                  <polygon points="-60,26 -52,23 -52,29" fill="#ffffff"/>
+
+                  <!-- Needle Tip Coordinate Marker -->
+                  <circle cx="-60" cy="26" r="4.5" fill="none" stroke="var(--cyan-bright)" stroke-width="1.2" stroke-dasharray="2,2"/>
+                  <text x="-66" y="18" fill="var(--cyan-bright)" font-family="Consolas, monospace" font-size="9" text-anchor="end">
+                    NEEDLE TIP
+                  </text>
+                </g>
+              </g>
+            </g>
+
+          </g>
+
+          <!-- 6. Zero Reference Ghost (Faint baseline at 0 mm / 0°) -->
+          <g id="referenceGhost" opacity="0.18" pointer-events="none">
+            <line x1="240" y1="542" x2="780" y2="302" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4,4"/>
+            <text x="740" y="325" fill="#38bdf8" font-family="Consolas, monospace" font-size="9">
+              0° REFERENCE TRAJECTORY
+            </text>
+          </g>
+        </svg>
+
+        <!-- Overlaid Scientific Coordinate Box (HUD) -->
+        <div class="svg-hud-overlay">
+          <div class="hud-box">
+            <span>KINEMATIC PAIR: </span><strong>TARGETED RCM ARC GUIDE</strong>
+          </div>
+          <div class="hud-box">
+            <span>TRAJECTORY TARGET: </span>
+            <strong id="hudPoseDisplay">0.00 mm // 0.0° [LOCKED ON TARGET DEPTH d]</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================
+       EMBEDDED CLIENT SCRIPT: KINEMATICS & REAL-TIME INTERACTION
+       ============================================================ -->
+  <script>
+    (function () {
+      'use strict';
+
+      // -------------------------------------------------------------
+      // 1. CONFIGURATION & STATE
+      // -------------------------------------------------------------
+      const LIMITS = {
+        linearMin: -50.0,
+        linearMax: 50.0,
+        rotMin: -25.0,
+        rotMax: 25.0,
+      };
+
+      // State store
+      const state = {
+        linear: 0.0,      // mm (-50 to +50)
+        rotation: 0.0,    // degrees (-25 to +25 along arc)
+        targetDepth: 50.0, // mm depth below probe face
+        motionState: 'READY', // 'READY', 'MOVING', 'LIMIT', 'PAUSED'
+        directionLinear: 'NEUTRAL', // 'ADVANCE', 'RETRACT', 'NEUTRAL'
+        directionRotation: 'NEUTRAL', // 'CW', 'CCW', 'NEUTRAL'
+        reducedMotion: false,
+        animating: false,
+        history: {
+          linear: [],
+          rotation: [],
+          maxPoints: 80,
+        }
+      };
+
+      // -------------------------------------------------------------
+      // 2. DOM ELEMENT REFERENCES
+      // -------------------------------------------------------------
+      // Top header
+      const globalStatusPill = document.getElementById('globalStatusPill');
+      const globalStatusDot = document.getElementById('globalStatusDot');
+      const globalStatusText = document.getElementById('globalStatusText');
+      const btnResetAll = document.getElementById('btnResetAll');
+      const chkReducedMotion = document.getElementById('chkReducedMotion');
+
+      // Left panel - Linear controls
+      const linearDisplay = document.getElementById('linearDisplay');
+      const linearDirBadge = document.getElementById('linearDirBadge');
+      const linearSlider = document.getElementById('linearSlider');
+      const linearNumInput = document.getElementById('linearNumInput');
+      const linearBipolarFill = document.getElementById('linearBipolarFill');
+      const btnLinearDownLarge = document.getElementById('btnLinearDownLarge');
+      const btnLinearDownSmall = document.getElementById('btnLinearDownSmall');
+      const btnLinearUpSmall = document.getElementById('btnLinearUpSmall');
+      const btnLinearUpLarge = document.getElementById('btnLinearUpLarge');
+      const btnLinearZero = document.getElementById('btnLinearZero');
+
+      // Left panel - Rotation controls
+      const rotationDisplay = document.getElementById('rotationDisplay');
+      const rotationDirBadge = document.getElementById('rotationDirBadge');
+      const rotationSlider = document.getElementById('rotationSlider');
+      const rotationNumInput = document.getElementById('rotationNumInput');
+      const rotationBipolarFill = document.getElementById('rotationBipolarFill');
+      const btnRotDownLarge = document.getElementById('btnRotDownLarge');
+      const btnRotDownSmall = document.getElementById('btnRotDownSmall');
+      const btnRotUpSmall = document.getElementById('btnRotUpSmall');
+      const btnRotUpLarge = document.getElementById('btnRotUpLarge');
+      const btnRotationZero = document.getElementById('btnRotationZero');
+      const dialArcPath = document.getElementById('dialArcPath');
+      const dialNeedleLine = document.getElementById('dialNeedleLine');
+
+      // Target Depth Controls
+      const depthSlider = document.getElementById('depthSlider');
+      const depthValDisplay = document.getElementById('depthValDisplay');
+      const depthDatumLine = document.getElementById('depthDatumLine');
+      const depthDatumText = document.getElementById('depthDatumText');
+      const targetFocalPointGroup = document.getElementById('targetFocalPointGroup');
+      const targetFocalCircle = document.getElementById('targetFocalCircle');
+      const targetCenterDot = document.getElementById('targetCenterDot');
+      const targetChH = document.getElementById('targetChH');
+      const targetChV = document.getElementById('targetChV');
+      const targetLabel = document.getElementById('targetLabel');
+
+      // Status Matrix
+      const matrixLinearVal = document.getElementById('matrixLinearVal');
+      const matrixRotVal = document.getElementById('matrixRotVal');
+      const matrixDepthVal = document.getElementById('matrixDepthVal');
+      const matrixNeedleState = document.getElementById('matrixNeedleState');
+      const matrixMotionState = document.getElementById('matrixMotionState');
+      const matrixLinearPct = document.getElementById('matrixLinearPct');
+      const matrixRotPct = document.getElementById('matrixRotPct');
+
+      // History Canvas
+      const historyCanvas = document.getElementById('historyCanvas');
+      const ctx = historyCanvas.getContext('2d');
+
+      // Right panel - Toolbar & SVG elements
+      const tbLinCoord = document.getElementById('tbLinCoord');
+      const tbRotCoord = document.getElementById('tbRotCoord');
+      const tbTargetDepth = document.getElementById('tbTargetDepth');
+      const hudPoseDisplay = document.getElementById('hudPoseDisplay');
+      const pitchingGroup = document.getElementById('pitchingGroup');
+      const slidingRackGroup = document.getElementById('slidingRackGroup');
+      const pinionSpoke1 = document.getElementById('pinionSpoke1');
+      const pinionSpoke2 = document.getElementById('pinionSpoke2');
+
+      // -------------------------------------------------------------
+      // 3. KINEMATIC UPDATE LOGIC
+      // -------------------------------------------------------------
+      function clamp(val, min, max) {
+        return Math.min(Math.max(val, min), max);
+      }
+
+      function updateUI() {
+        const lin = state.linear;
+        const rot = state.rotation;
+        const depth = state.targetDepth;
+
+        // Formatted coordinate strings
+        const linSign = lin > 0 ? '+' : (lin === 0 ? '+' : '');
+        const rotSign = rot > 0 ? '+' : (rot === 0 ? '+' : '');
+        const linStr = `${linSign}${lin.toFixed(2)} mm`;
+        const rotStr = `${rotSign}${rot.toFixed(1)}°`;
+
+        // 1. Digital Displays
+        linearDisplay.innerHTML = `${linSign}${lin.toFixed(2)}<span class="unit">mm</span>`;
+        rotationDisplay.innerHTML = `${rotSign}${rot.toFixed(1)}<span class="unit">°</span>`;
+
+        // Sliders & numeric inputs (prevent feedback loops)
+        if (parseFloat(linearSlider.value) !== lin) linearSlider.value = lin;
+        if (parseFloat(linearNumInput.value) !== lin) linearNumInput.value = lin.toFixed(2);
+        if (parseFloat(rotationSlider.value) !== rot) rotationSlider.value = rot;
+        if (parseFloat(rotationNumInput.value) !== rot) rotationNumInput.value = rot.toFixed(1);
+        if (parseFloat(depthSlider.value) !== depth) depthSlider.value = depth;
+
+        depthValDisplay.textContent = `${depth.toFixed(1)} mm`;
+
+        // 2. Bipolar Progress Bars
+        const linPct = (lin / LIMITS.linearMax) * 50; // -50% to +50%
+        if (linPct >= 0) {
+          linearBipolarFill.style.left = '50%';
+          linearBipolarFill.style.width = `${linPct}%`;
+          linearBipolarFill.classList.remove('negative');
+        } else {
+          linearBipolarFill.style.left = `${50 + linPct}%`;
+          linearBipolarFill.style.width = `${Math.abs(linPct)}%`;
+          linearBipolarFill.classList.add('negative');
+        }
+
+        const rotPct = (rot / LIMITS.rotMax) * 50; // -50% to +50%
+        if (rotPct >= 0) {
+          rotationBipolarFill.style.left = '50%';
+          rotationBipolarFill.style.width = `${rotPct}%`;
+          rotationBipolarFill.classList.remove('negative');
+        } else {
+          rotationBipolarFill.style.left = `${50 + rotPct}%`;
+          rotationBipolarFill.style.width = `${Math.abs(rotPct)}%`;
+          rotationBipolarFill.classList.add('negative');
+        }
+
+        // 3. Direction Badges & Motion States
+        if (lin > 0.1) {
+          state.directionLinear = 'ADVANCING ▼';
+          linearDirBadge.textContent = 'ADVANCING ▼';
+          linearDirBadge.className = 'dir-badge active';
+        } else if (lin < -0.1) {
+          state.directionLinear = 'RETRACTING ▲';
+          linearDirBadge.textContent = 'RETRACTING ▲';
+          linearDirBadge.className = 'dir-badge active';
+        } else {
+          state.directionLinear = 'NEUTRAL';
+          linearDirBadge.textContent = 'NEUTRAL';
+          linearDirBadge.className = 'dir-badge';
+        }
+
+        if (rot > 0.2) {
+          state.directionRotation = 'PITCH DOWN (STEEP)';
+          rotationDirBadge.textContent = 'PITCH DOWN ▼';
+          rotationDirBadge.className = 'dir-badge active';
+        } else if (rot < -0.2) {
+          state.directionRotation = 'PITCH UP (SHALLOW)';
+          rotationDirBadge.textContent = 'PITCH UP ▲';
+          rotationDirBadge.className = 'dir-badge active';
+        } else {
+          state.directionRotation = 'NEUTRAL';
+          rotationDirBadge.textContent = 'NEUTRAL (24°)';
+          rotationDirBadge.className = 'dir-badge';
+        }
+
+        // Limit condition warnings
+        const isLimit = Math.abs(lin) >= LIMITS.linearMax || Math.abs(rot) >= LIMITS.rotMax;
+        if (isLimit) {
+          state.motionState = 'LIMIT REACHED';
+          globalStatusDot.className = 'status-dot limit';
+          globalStatusText.textContent = 'ARC LIMIT REACHED';
+          if (Math.abs(lin) >= LIMITS.linearMax) linearDirBadge.className = 'dir-badge warn';
+          if (Math.abs(rot) >= LIMITS.rotMax) rotationDirBadge.className = 'dir-badge warn';
+        } else if (state.animating) {
+          state.motionState = 'MOVING';
+          globalStatusDot.className = 'status-dot moving';
+          globalStatusText.textContent = 'IN TRANSIT...';
+        } else if (lin === 0 && rot === 0) {
+          state.motionState = 'READY';
+          globalStatusDot.className = 'status-dot';
+          globalStatusText.textContent = 'READY · AT ZERO';
+        } else {
+          state.motionState = 'HOLDING POSE';
+          globalStatusDot.className = 'status-dot';
+          globalStatusText.textContent = 'TARGET LOCKED';
+        }
+
+        // 4. Dial Gauge (Axis 2)
+        const dialRad = (rot * Math.PI) / 180;
+        const needleX = 30 + 20 * Math.sin(dialRad);
+        const needleY = 30 - 20 * Math.cos(dialRad);
+        dialNeedleLine.setAttribute('x2', needleX.toFixed(1));
+        dialNeedleLine.setAttribute('y2', needleY.toFixed(1));
+
+        const largeArc = Math.abs(rot) > 180 ? 1 : 0;
+        const sweep = rot >= 0 ? 1 : 0;
+        const arcX = 30 + 24 * Math.sin(dialRad);
+        const arcY = 30 - 24 * Math.cos(dialRad);
+        if (Math.abs(rot) < 0.5) {
+          dialArcPath.setAttribute('d', 'M 30 6 A 24 24 0 0 1 30 6');
+        } else {
+          dialArcPath.setAttribute('d', `M 30 6 A 24 24 0 ${largeArc} ${sweep} ${arcX.toFixed(1)} ${arcY.toFixed(1)}`);
+        }
+
+        // 5. System Status Matrix
+        matrixLinearVal.textContent = linStr;
+        matrixRotVal.textContent = rotStr;
+        matrixDepthVal.textContent = `${depth.toFixed(1)} mm`;
+        matrixMotionState.textContent = state.motionState;
+        matrixLinearPct.textContent = `${Math.abs(lin / LIMITS.linearMax * 100).toFixed(1)}%`;
+        matrixRotPct.textContent = `${Math.abs(rot / LIMITS.rotMax * 100).toFixed(1)}%`;
+
+        if (lin === 0) {
+          matrixNeedleState.textContent = 'Reference Pose (0 mm)';
+          matrixNeedleState.style.color = 'var(--text-primary)';
+        } else if (lin > 0) {
+          matrixNeedleState.textContent = `Targeting Depth (+${lin.toFixed(1)} mm)`;
+          matrixNeedleState.style.color = 'var(--cyan-bright)';
+        } else {
+          matrixNeedleState.textContent = `Retracted (${lin.toFixed(1)} mm)`;
+          matrixNeedleState.style.color = 'var(--amber-warn)';
+        }
+
+        // 6. SVG Mechanism Kinematics (True RCM!)
+        updateMechanismSVG(lin, rot, depth);
+
+        // 7. Toolbar Readouts
+        tbLinCoord.textContent = linStr;
+        tbRotCoord.textContent = rotStr;
+        tbTargetDepth.textContent = `d = ${depth.toFixed(1)} mm`;
+        hudPoseDisplay.textContent = `${linStr} // ${rotStr} [LOCKED ON DEPTH d=${depth.toFixed(0)}mm]`;
+      }
+
+      function updateMechanismSVG(linearMm, rotationDeg, depthMm) {
+        // Target focal position under ultrasound probe face:
+        // Probe face is at X=240, Y=492.
+        const targetX = 240.0;
+        const targetY = 492.0 + depthMm; // Depth d below probe face
+
+        // Update target crosshair position in SVG
+        targetFocalCircle.setAttribute('cx', targetX);
+        targetFocalCircle.setAttribute('cy', targetY);
+        targetCenterDot.setAttribute('cx', targetX);
+        targetCenterDot.setAttribute('cy', targetY);
+        targetChH.setAttribute('x1', targetX - 15);
+        targetChH.setAttribute('x2', targetX + 15);
+        targetChH.setAttribute('y1', targetY);
+        targetChH.setAttribute('y2', targetY);
+        targetChV.setAttribute('x1', targetX);
+        targetChV.setAttribute('x2', targetX);
+        targetChV.setAttribute('y1', targetY - 15);
+        targetChV.setAttribute('y2', targetY + 15);
+        targetLabel.setAttribute('x', targetX + 18);
+        targetLabel.setAttribute('y', targetY + 4);
+
+        // Update target depth datum line
+        depthDatumLine.setAttribute('y1', targetY);
+        depthDatumLine.setAttribute('y2', targetY);
+        depthDatumText.setAttribute('y', targetY - 6);
+        depthDatumText.textContent = `TARGET DEPTH d = ${depthMm.toFixed(1)} mm`;
+
+        // TRUE RCM PIVOT:
+        // As the carriage travels along the arc guide, it strictly pivots
+        // around the target point (targetX, targetY) at depth d!
+        pitchingGroup.setAttribute('transform', `rotate(${rotationDeg.toFixed(2)}, ${targetX}, ${targetY})`);
+
+        // LINEAR TRANSLATION (AXIS 1):
+        // 1 mm in physical space = 2.4 px along the insertion trajectory
+        // Positive mm advances needle toward the target (-X in local frame)
+        const pxOffset = -linearMm * 2.4;
+        slidingRackGroup.setAttribute('transform', `translate(${pxOffset.toFixed(2)}, 0)`);
+
+        // PINION ROTATION:
+        // As rack translates, pinion gear rotates proportionally: theta = offset / radius
+        const pinionAngle = (pxOffset / 14) * (180 / Math.PI);
+        const spokeTransform = `rotate(${pinionAngle.toFixed(1)})`;
+        pinionSpoke1.setAttribute('transform', spokeTransform);
+        pinionSpoke2.setAttribute('transform', spokeTransform);
+      }
+
+      // -------------------------------------------------------------
+      // 4. COORDINATE HISTORY LOGGING & CANVAS SPARKLINE
+      // -------------------------------------------------------------
+      function logHistory() {
+        state.history.linear.push(state.linear);
+        state.history.rotation.push(state.rotation);
+
+        if (state.history.linear.length > state.history.maxPoints) {
+          state.history.linear.shift();
+          state.history.rotation.shift();
+        }
+
+        drawHistoryCanvas();
+      }
+
+      function drawHistoryCanvas() {
+        const w = historyCanvas.width;
+        const h = historyCanvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const pts = state.history.linear.length;
+        if (pts < 2) return;
+
+        const midY = h / 2;
+
+        // Background Zero Datum Line
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, midY);
+        ctx.lineTo(w, midY);
+        ctx.stroke();
+
+        const stepX = w / (state.history.maxPoints - 1);
+
+        // 1. Draw Linear Line (Cyan)
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i < pts; i++) {
+          const val = state.history.linear[i];
+          const y = midY - (val / LIMITS.linearMax) * (midY - 6);
+          const x = i * stepX;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 2. Draw Rotation Line (Amber)
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let i = 0; i < pts; i++) {
+          const val = state.history.rotation[i];
+          const y = midY - (val / LIMITS.rotMax) * (midY - 6);
+          const x = i * stepX;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      // -------------------------------------------------------------
+      // 5. ANIMATED SMOOTH TRANSITIONS
+      // -------------------------------------------------------------
+      let animFrameId = null;
+
+      function animateTo(targetLin, targetRot, durationMs = 450) {
+        if (state.reducedMotion) {
+          state.linear = clamp(targetLin, LIMITS.linearMin, LIMITS.linearMax);
+          state.rotation = clamp(targetRot, LIMITS.rotMin, LIMITS.rotMax);
+          state.animating = false;
+          updateUI();
+          return;
+        }
+
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+
+        const startLin = state.linear;
+        const startRot = state.rotation;
+        const deltaLin = clamp(targetLin, LIMITS.linearMin, LIMITS.linearMax) - startLin;
+        const deltaRot = clamp(targetRot, LIMITS.rotMin, LIMITS.rotMax) - startRot;
+
+        const startTime = performance.now();
+        state.animating = true;
+
+        function easeOut(t) {
+          return 1 - Math.pow(1 - t, 3);
+        }
+
+        function step(now) {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / durationMs, 1.0);
+          const eased = easeOut(progress);
+
+          state.linear = startLin + deltaLin * eased;
+          state.rotation = startRot + deltaRot * eased;
+          updateUI();
+
+          if (progress < 1.0) {
+            animFrameId = requestAnimationFrame(step);
+          } else {
+            state.linear = startLin + deltaLin;
+            state.rotation = startRot + deltaRot;
+            state.animating = false;
+            animFrameId = null;
+            updateUI();
+          }
+        }
+
+        animFrameId = requestAnimationFrame(step);
+      }
+
+      function resetAll() {
+        animateTo(0.0, 0.0, 550);
+      }
+
+      // -------------------------------------------------------------
+      // 6. EVENT LISTENERS & USER INPUT BINDINGS
+      // -------------------------------------------------------------
+      // Linear Slider & Input
+      linearSlider.addEventListener('input', (e) => {
+        state.linear = clamp(parseFloat(e.target.value), LIMITS.linearMin, LIMITS.linearMax);
+        updateUI();
+      });
+
+      linearNumInput.addEventListener('change', (e) => {
+        const val = parseFloat(e.target.value) || 0;
+        state.linear = clamp(val, LIMITS.linearMin, LIMITS.linearMax);
+        updateUI();
+      });
+
+      // Linear Step Buttons
+      btnLinearDownLarge.addEventListener('click', () => {
+        animateTo(state.linear - 5.0, state.rotation, 200);
+      });
+      btnLinearDownSmall.addEventListener('click', () => {
+        animateTo(state.linear - 1.0, state.rotation, 150);
+      });
+      btnLinearUpSmall.addEventListener('click', () => {
+        animateTo(state.linear + 1.0, state.rotation, 150);
+      });
+      btnLinearUpLarge.addEventListener('click', () => {
+        animateTo(state.linear + 5.0, state.rotation, 200);
+      });
+      btnLinearZero.addEventListener('click', () => {
+        animateTo(0.0, state.rotation, 300);
+      });
+
+      // Rotation Slider & Input
+      rotationSlider.addEventListener('input', (e) => {
+        state.rotation = clamp(parseFloat(e.target.value), LIMITS.rotMin, LIMITS.rotMax);
+        updateUI();
+      });
+
+      rotationNumInput.addEventListener('change', (e) => {
+        const val = parseFloat(e.target.value) || 0;
+        state.rotation = clamp(val, LIMITS.rotMin, LIMITS.rotMax);
+        updateUI();
+      });
+
+      // Rotation Step Buttons
+      btnRotDownLarge.addEventListener('click', () => {
+        animateTo(state.linear, state.rotation - 5.0, 200);
+      });
+      btnRotDownSmall.addEventListener('click', () => {
+        animateTo(state.linear, state.rotation - 1.0, 150);
+      });
+      btnRotUpSmall.addEventListener('click', () => {
+        animateTo(state.linear, state.rotation + 1.0, 150);
+      });
+      btnRotUpLarge.addEventListener('click', () => {
+        animateTo(state.linear, state.rotation + 5.0, 200);
+      });
+      btnRotationZero.addEventListener('click', () => {
+        animateTo(state.linear, 0.0, 300);
+      });
+
+      // Depth Slider
+      depthSlider.addEventListener('input', (e) => {
+        state.targetDepth = parseFloat(e.target.value);
+        updateUI();
+      });
+
+      // Reset All button
+      btnResetAll.addEventListener('click', resetAll);
+
+      // Reduced Motion Toggle
+      chkReducedMotion.addEventListener('change', (e) => {
+        state.reducedMotion = e.target.checked;
+        if (state.reducedMotion) {
+          document.body.classList.add('reduced-motion');
+        } else {
+          document.body.classList.remove('reduced-motion');
+        }
+      });
+
+      // Keyboard Teleoperation Shortcuts
+      window.addEventListener('keydown', (e) => {
+        if (document.activeElement === linearNumInput || document.activeElement === rotationNumInput) {
+          return;
+        }
+
+        const stepLin = e.shiftKey ? 5.0 : 1.0;
+        const stepRot = e.shiftKey ? 5.0 : 1.0;
+
+        switch (e.key.toUpperCase()) {
+          case 'W':
+          case 'ARROWUP':
+            animateTo(state.linear + stepLin, state.rotation, 150);
+            e.preventDefault();
+            break;
+          case 'S':
+          case 'ARROWDOWN':
+            animateTo(state.linear - stepLin, state.rotation, 150);
+            e.preventDefault();
+            break;
+          case 'A':
+          case 'ARROWLEFT':
+            animateTo(state.linear, state.rotation - stepRot, 150);
+            e.preventDefault();
+            break;
+          case 'D':
+          case 'ARROWRIGHT':
+            animateTo(state.linear, state.rotation + stepRot, 150);
+            e.preventDefault();
+            break;
+          case 'R':
+            resetAll();
+            e.preventDefault();
+            break;
+          case ' ':
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            state.animating = false;
+            updateUI();
+            e.preventDefault();
+            break;
+        }
+      });
+
+      // -------------------------------------------------------------
+      // 7. INITIALIZATION & RECURRING LOGGING TIMER
+      // -------------------------------------------------------------
+      state.linear = 0.0;
+      state.rotation = 0.0;
+      state.targetDepth = 50.0;
+      updateUI();
+
+      for (let i = 0; i < state.history.maxPoints; i++) {
+        state.history.linear.push(0.0);
+        state.history.rotation.push(0.0);
+      }
+      drawHistoryCanvas();
+
+      setInterval(logHistory, 100);
+
+      console.log('RCM-Constrained Ultrasound Needle Insertion Visualization initialized.');
+    })();
+  </script>
+</body>
+</html>
